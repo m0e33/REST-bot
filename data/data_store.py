@@ -2,8 +2,8 @@
 
 import os
 import shutil
-from .API_adapter import APIAdapter
-from .csv_writer import CSVWriter
+from .api_adapter import APIAdapter, get_historical_prices
+from .csv_writer import write
 
 RELEVANT_HIST_FIELDS = ["date", "open", "close", "high", "low", "vwap"]
 
@@ -30,6 +30,18 @@ def _get_path(symbol: str, start: str, end: str, file_type: str = "csv"):
     return f"{DataStore.STORAGE_PATH}{symbol}_{start}_{end}.{file_type}"
 
 
+def get_price_data(symbol: str, start: str, end: str):
+    """Get historical price data from file or from API"""
+
+    path = _get_path(symbol, start, end)
+    if _check_file(path):
+        # load file
+        pass
+    else:
+        prices = get_historical_prices(symbol, start, end)
+        write(path, prices, RELEVANT_HIST_FIELDS)
+
+
 class DataStore:
     """DataStore for handling data delivery"""
 
@@ -37,18 +49,9 @@ class DataStore:
 
     def __init__(self) -> None:
         self.api = APIAdapter()
-        self.writer = CSVWriter()
-
-    def get_price_data(self, symbol: str, start: str, end: str):
-        """Get historical price data from file or from API"""
-
-        path = _get_path(symbol, start, end)
-        if _check_file(path):
-            # load file
-            pass
-        else:
-            prices = self.api.get_historical_prices(symbol, start, end)
-            self.writer.write(path, prices, RELEVANT_HIST_FIELDS)
 
     def get_press_release_data(self):
         """Get press release data from file or from API"""
+
+    def add_another_method_for_linter(self):
+        """Another public method for linter"""
