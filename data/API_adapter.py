@@ -16,7 +16,7 @@ def get_historical_prices(symbol: str, start: str, end: str) -> List[Dict]:
 
 
 class APIAdapter:
-    """Adapter for fetching relevant data from https://financialmodelingprep.com"""
+    """Adapter for fetching relevant data from financialmodelingprep.com"""
 
     API_KEY = "ab94e35951aef133a2befdecb21c20b6"
     BASE_URL = "https://financialmodelingprep.com/api/v3/"
