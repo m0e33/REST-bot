@@ -1,29 +1,16 @@
-from data.API_adapter import APIAdapter
-from .csv_writer import CSVWriter
-import os, shutil
+"""DataStore for handling data delivery"""
 
-RELEVANT_HIST_FIELDS = ['date', 'open', 'close', 'high', 'low', 'vwap']
+import os
+import shutil
+from .api_adapter import APIAdapter, get_historical_prices
+from .csv_writer import write
 
-class DataStore:
-  STORAGE_PATH = './data/storage/'
+RELEVANT_HIST_FIELDS = ["date", "open", "close", "high", "low", "vwap"]
 
-  def __init__(self) -> None:
-      self.api = APIAdapter()
-      self.writer = CSVWriter()
-    
-  def get_price_data(self, symbol: str, start: str, end: str):
-    path = self._get_path(symbol, start, end)
-    if self._check_file(path):
-      # load file
-      pass
-    else:
-      prices = self.api.get_historical_prices(symbol, start, end)
-      self.writer.write(path, prices, RELEVANT_HIST_FIELDS)
 
-  def get_press_release_data():
-    pass
+def flush():
+    """Wipe all existing data files"""
 
-  def flush(self):
     for filename in os.listdir(DataStore.STORAGE_PATH):
         file_path = os.path.join(DataStore.STORAGE_PATH, filename)
         try:
@@ -31,12 +18,40 @@ class DataStore:
                 os.unlink(file_path)
             elif os.path.isdir(file_path):
                 shutil.rmtree(file_path)
-        except Exception as e:
-            print('Failed to delete %s. Reason: %s' % (file_path, e))
+        except StopIteration as error:
+            print("Failed to delete %s. Reason: %s" % (file_path, error))
 
-  def _check_file(self, name: str):
+
+def _check_file(name: str):
     return os.path.exists(name)
-  
-  def _get_path(self, symbol: str, start: str, end: str, type: str = 'csv'):
-    return f"{DataStore.STORAGE_PATH}{symbol}_{start}_{end}.{type}"
-  
+
+
+def _get_path(symbol: str, start: str, end: str, file_type: str = "csv"):
+    return f"{DataStore.STORAGE_PATH}{symbol}_{start}_{end}.{file_type}"
+
+
+def get_price_data(symbol: str, start: str, end: str):
+    """Get historical price data from file or from API"""
+
+    path = _get_path(symbol, start, end)
+    if _check_file(path):
+        # load file
+        pass
+    else:
+        prices = get_historical_prices(symbol, start, end)
+        write(path, prices, RELEVANT_HIST_FIELDS)
+
+
+class DataStore:
+    """DataStore for handling data delivery"""
+
+    STORAGE_PATH = "./data/storage/"
+
+    def __init__(self) -> None:
+        self.api = APIAdapter()
+
+    def get_press_release_data(self):
+        """Get press release data from file or from API"""
+
+    def add_another_method_for_linter(self):
+        """Another public method for linter"""

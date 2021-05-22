@@ -1,3 +1,5 @@
 {
-  "python.pythonPath": "/Users/moe/DEV/REST-bot/.venv/bin/python"
+  "python.pythonPath": "/Users/moe/DEV/REST-bot/.venv/bin/python",
+  "editor.formatOnSave": true,
+  "python.formatting.provider": "black"
 }
