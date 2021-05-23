@@ -1,7 +1,9 @@
 """Executable for testing the functionality of various methods and modules"""
 
-import data.data_store
+from data.data_store import DataStore
+
 
 if __name__ == "__main__":
-    data.data_store.flush()
-    data.data_store.get_price_data("AAPL", "2021-01-01", "2021-05-22")
+    symbols = ["AAPL", "ACN", "CDW", "NFLX"]
+    data_store = DataStore(symbols, "2021-01-01", "2021-04-01")
+    data_store.build()
