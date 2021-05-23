@@ -10,7 +10,7 @@ from .csv_writer import write_csv
 RELEVANT_HIST_FIELDS = ["date", "open", "close", "high", "low", "vwap"]
 
 
-def flush():
+def flush_store_files():
     """Wipe all existing data files"""
 
     for filename in os.listdir(DataStore.STORAGE_PATH):
@@ -43,13 +43,13 @@ class DataStore:
         self.start = start
         self.end = end
 
-    def rebuild_store(self):
+    def rebuild(self):
         """Clears cache and fetches data from api again"""
 
-        flush()
-        self.build_store()
+        flush_store_files()
+        self.build()
 
-    def build_store(self):
+    def build(self):
         """Writes all necessary data to the filesystem, if it is not yet present"""
 
         for symbol in self.symbols:
