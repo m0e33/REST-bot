@@ -4,8 +4,8 @@ import os
 import shutil
 from typing import List
 
-from .api_adapter import APIAdapter, get_historical_prices
-from .csv_writer import write_csv, read_csv_to_json_array
+from data.api_adapter import APIAdapter, get_historical_prices
+from data.csv_writer import write_csv, read_csv_to_json_array
 
 RELEVANT_HIST_FIELDS = ["date", "open", "close", "high", "low", "vwap"]
 
@@ -56,7 +56,8 @@ class DataStore:
             self._build_symbol_data(symbol)
 
     def _build_symbol_data(self, symbol: str):
-        # t_o_d_o: build event data
+        # pylint: disable=fixme
+        # TODO: build event data
         self._build_historical_data(symbol)
 
     def _build_historical_data(self, symbol: str):
