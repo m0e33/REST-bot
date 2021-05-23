@@ -3,14 +3,17 @@ import csv
 from typing import List
 
 
-def read_csv_to_json_array(path: str):
+def read_csv_to_json_array(path: str, fieldnames: List[str]):
     """Helper method for reading csv rows into array of json objects"""
 
     json_array = []
-    with open(path) as csvFile:
-        reader = csv.DictReader(csvFile)
+    with open(path) as csv_file:
+        reader = csv.DictReader(csv_file, delimiter=";")
         for rows in reader:
-            json_array.append(rows)
+            json_object = {}
+            for key in fieldnames:
+                json_object[key] = rows[key]
+            json_array.append(json_object)
 
     return json_array
 

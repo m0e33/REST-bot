@@ -78,11 +78,11 @@ class DataStore:
         path = _get_path(symbol, self.start, self.end)
 
         if _check_file(path):
-            price_data = read_csv_to_json_array(path)
+            price_data = read_csv_to_json_array(path, RELEVANT_HIST_FIELDS)
         else:
             prices = get_historical_prices(symbol, self.start, self.end)
             write_csv(path, prices, RELEVANT_HIST_FIELDS)
 
-            price_data = read_csv_to_json_array(path)
+            price_data = read_csv_to_json_array(path, RELEVANT_HIST_FIELDS)
 
         return price_data
