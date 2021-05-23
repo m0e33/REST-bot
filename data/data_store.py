@@ -56,7 +56,7 @@ class DataStore:
             self._build_symbol_data(symbol)
 
     def _build_symbol_data(self, symbol: str):
-        # TODO: build event data
+        # t_o_d_o: build event data
         self._build_historical_data(symbol)
 
     def _build_historical_data(self, symbol: str):
@@ -76,10 +76,13 @@ class DataStore:
         ), f"symbol {symbol} is not contained in data store."
 
         path = _get_path(symbol, self.start, self.end)
+
         if _check_file(path):
-            return read_csv_to_json_array(path)
+            price_data = read_csv_to_json_array(path)
         else:
             prices = get_historical_prices(symbol, self.start, self.end)
             write_csv(path, prices, RELEVANT_HIST_FIELDS)
 
-            return read_csv_to_json_array(path)
+            price_data = read_csv_to_json_array(path)
+
+        return price_data
