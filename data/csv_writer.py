@@ -3,7 +3,7 @@ import csv
 from typing import List
 
 
-def write(path: str, data, fieldnames: List[str]):
+def write_csv(path: str, data, fieldnames: List[str]):
     """Method for writing a List of Dicts to csv"""
 
     with open(path, "w", newline="") as csvfile:
