@@ -3,11 +3,12 @@
 import os
 import shutil
 from enum import Enum
-from typing import List, Union
+from typing import List
 
 from data.api_adapter import APIAdapter
 from data.csv_writer import write_csv, read_csv_to_json_array
 from data.data_info import PriceDataInfo, PressDataInfo
+
 
 class DataType(Enum):
     PRICE_DATA = 'price_data'
@@ -58,6 +59,13 @@ class DataStore:
 
         [[self._build_data_for_symbol(symbol, type) for type in DataType] for symbol in self.symbols]
 
+    def get_price_data(self, symbol: str):
+        """Get historical price data from file or from API"""
+        return self._get_data_from_file_or_rebuild(symbol, DataType.PRICE_DATA_DATA)
+
+    def get_press_release_data(self, symbol: str):
+        """Get historical press release data from file or from API"""
+        return self._get_data_from_file_or_rebuild(symbol, DataType.PRESS_DATA)
 
     def _build_data_for_symbol(self, symbol: str, data_type: DataType):
         data_info = self._data_info[data_type]
@@ -68,39 +76,20 @@ class DataStore:
             data = data_info.get_data(symbol)
             write_csv(path, data, data_info.fields)
 
-
-    def get_press_release_data(self, symbol: str):
+    def _get_data_from_file_or_rebuild(self, symbol: str, data_type: DataType):
         """Get historical press release data from file or from API"""
-        press_data = self._data_info[DataType.PRESS_DATA]
+        data_info = self._data_info[data_type]
 
         assert (
                 symbol in self.symbols
         ), f"DataStore does not contain symbol '{symbol}'."
 
-        path = press_data.get_path(symbol)
+        path = data_info.get_path(symbol)
 
         if _check_file(path):
-            press_data = read_csv_to_json_array(path, press_data.fields)
+            data_info = read_csv_to_json_array(path, data_info.fields)
         else:
             self._build_data_for_symbol(symbol, DataType.PRESS_DATA)
-            press_data = read_csv_to_json_array(path, press_data.fields)
+            data_info = read_csv_to_json_array(path, data_info.fields)
 
-        return press_data
-
-    def get_price_data(self, symbol: str):
-        """Get historical price data from file or from API"""
-        price_data = self._data_info[DataType.PRICE_DATA]
-
-        assert (
-                symbol in self.symbols
-        ), f"symbol {symbol} is not contained in data store."
-
-        path = price_data.get_path(symbol)
-
-        if _check_file(path):
-            price_data = read_csv_to_json_array(path, price_data.fields)
-        else:
-            self._build_data_for_symbol(symbol, DataType.PRICE_DATA)
-            price_data = read_csv_to_json_array(path, price_data.fields)
-
-        return price_data
+        return data_info
