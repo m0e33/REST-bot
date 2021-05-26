@@ -3,13 +3,11 @@ We have essentially 3 types of data: Press release data, historical
 price data and relation data. The specifics of those data
 types are handled here.
 """
-
-from dataclasses import dataclass
+from typing import List
 
 from data.api_adapter import APIAdapter
 
 
-@dataclass
 class PriceDataInfo:
     """Information for Historical Price Data"""
 
@@ -33,7 +31,6 @@ class PriceDataInfo:
         ]
 
 
-@dataclass
 class PressDataInfo:
     """Information for Press Release Data"""
 
@@ -51,4 +48,43 @@ class PressDataInfo:
 
     def get_data(self, symbol: str):
         """Get press release data via api"""
-        return self._api.get_press_releases(symbol, self.limit)
+        return self._api.get_press_releases(symbol[0], self.limit)
+
+
+class IndustryRelationDataInfo:
+    """Information to represent different relations between symbols"""
+
+    def __init__(self, base_path, api: APIAdapter, symbols: List[str]):
+        self._base_path = base_path
+        self._path = f"{self._base_path}relation_industry.csv"
+        self._api = api
+        self.symbols = symbols
+        self.fields = ["symbol"] + symbols
+
+    def get_path(self):
+        """Get file path for industry relation file"""
+        return self._path
+
+    def get_data(self):
+        """Get industry relation of symbols via api"""
+
+        companies = filter(
+            None,
+            [self._api.get_industry_classification(symbol) for symbol in self.fields],
+        )
+        symbols_industries = {
+            company[0]["symbol"]: company[0]["industryTitle"] for company in companies
+        }
+
+        industry_data = []
+        for symbol in self.symbols:
+            industry_dict = {}
+            industry_dict["symbol"] = symbol
+            for company, industry in symbols_industries.items():
+                if symbols_industries[symbol] == industry:
+                    industry_dict[company] = 1
+                else:
+                    industry_dict[company] = 0
+            industry_data.append(industry_dict)
+
+        return industry_data
