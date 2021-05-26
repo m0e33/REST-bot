@@ -1,6 +1,4 @@
-from collections import namedtuple
 from dataclasses import dataclass
-from typing import Any
 
 from data.api_adapter import APIAdapter
 
@@ -21,6 +19,7 @@ class PriceDataInfo():
 
     def get_data(self, symbol: str):
         return self._api.get_historical_prices(symbol, self.start, self.end)['historical']
+
 
 @dataclass
 class PressDataInfo():
