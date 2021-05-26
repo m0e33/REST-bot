@@ -17,7 +17,7 @@ class APIAdapter:
         path = "historical-price-full/" + f"{symbol}?from={start}&to={end}&"
         return self._request(path)
 
-    def get_press_release_data(self, symbol: str, limit: int) -> List[Dict]:
+    def get_press_releases(self, symbol: str, limit: int) -> List[Dict]:
         """Get press releases for symbol"""
 
         path = "press-releases/" + f"{symbol}?limit={limit}&"
