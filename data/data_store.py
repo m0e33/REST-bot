@@ -12,6 +12,7 @@ from data.data_info import (
     PressDataInfo,
     IndustryRelationDataInfo,
     StockPeerRelationDataInfo,
+    InstitutionalHoldersRelationDataInfo,
 )
 
 
@@ -22,6 +23,7 @@ class DataType(Enum):
     PRESS_DATA = "press_data"
     INDUSTRY_RELATION_DATA = "industry_relation_data"
     STOCK_PEER_RELATION_DATA = "stock_peer_relation_data"
+    INSTITUTIONAL_HOLDERS_RELATION_DATA = "inst_holders_relation_data"
 
 
 def flush_store_files():
@@ -63,6 +65,9 @@ class DataStore:
             DataType.STOCK_PEER_RELATION_DATA: StockPeerRelationDataInfo(
                 DataStore.STORAGE_PATH, self.api, self.symbols
             ),
+            DataType.INSTITUTIONAL_HOLDERS_RELATION_DATA: InstitutionalHoldersRelationDataInfo(
+                DataStore.STORAGE_PATH, self.api, self.symbols
+            ),
         }
 
     def rebuild(self):
@@ -74,11 +79,15 @@ class DataStore:
     def build(self):
         """Writes all necessary data to the filesystem, if it is not yet present"""
 
+        # Get price and press data for each symbols
         for symbol in self.symbols:
             self._build_data_for_symbol(symbol, DataType.PRESS_DATA)
             self._build_data_for_symbol(symbol, DataType.PRICE_DATA)
+
+        # Get relation data for all symbols
         self._build_data_for_symbols(DataType.INDUSTRY_RELATION_DATA)
         self._build_data_for_symbols(DataType.STOCK_PEER_RELATION_DATA)
+        self._build_data_for_symbols(DataType.INSTITUTIONAL_HOLDERS_RELATION_DATA)
 
     def get_price_data(self, symbol: str):
         """Get historical price data from file or from API"""
