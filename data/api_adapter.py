@@ -8,8 +8,8 @@ class APIAdapter:
     """Adapter for fetching relevant data from financialmodelingprep.com"""
 
     def __init__(self) -> None:
-        self.API_KEY = "ab94e35951aef133a2befdecb21c20b6"
-        self.BASE_URL = "https://financialmodelingprep.com/api/v3/"
+        self._key = "ab94e35951aef133a2befdecb21c20b6"
+        self.base_url = "https://financialmodelingprep.com/api/v3/"
 
     def get_historical_prices(self, symbol: str, start: str, end: str) -> List[Dict]:
         """Get historical prices from for given time span"""
@@ -24,6 +24,6 @@ class APIAdapter:
         return self._request(path)
 
     def _request(self, path: str):
-        url = self.BASE_URL + path + f"apikey={self.API_KEY}"
+        url = self.base_url + path + f"apikey={self._key}"
         answer = re.get(url)
         return answer.json()

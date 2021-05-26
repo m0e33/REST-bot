@@ -11,8 +11,10 @@ from data.data_info import PriceDataInfo, PressDataInfo
 
 
 class DataType(Enum):
-    PRICE_DATA = 'price_data'
-    PRESS_DATA = 'press_data'
+    """To distinguish between different types of data"""
+
+    PRICE_DATA = "price_data"
+    PRESS_DATA = "press_data"
 
 
 def flush_store_files():
@@ -45,7 +47,7 @@ class DataStore:
         self.end = end
         self._data_info = {
             DataType.PRICE_DATA: PriceDataInfo(DataStore.STORAGE_PATH, self.api),
-            DataType.PRESS_DATA: PressDataInfo(DataStore.STORAGE_PATH, self.api)
+            DataType.PRESS_DATA: PressDataInfo(DataStore.STORAGE_PATH, self.api),
         }
 
     def rebuild(self):
@@ -56,12 +58,14 @@ class DataStore:
 
     def build(self):
         """Writes all necessary data to the filesystem, if it is not yet present"""
-
-        [[self._build_data_for_symbol(symbol, type) for type in DataType] for symbol in self.symbols]
+        _ = [
+            [self._build_data_for_symbol(symbol, type) for type in DataType]
+            for symbol in self.symbols
+        ]
 
     def get_price_data(self, symbol: str):
         """Get historical price data from file or from API"""
-        return self._get_data_from_file_or_rebuild(symbol, DataType.PRICE_DATA_DATA)
+        return self._get_data_from_file_or_rebuild(symbol, DataType.PRICE_DATA)
 
     def get_press_release_data(self, symbol: str):
         """Get historical press release data from file or from API"""
@@ -80,9 +84,7 @@ class DataStore:
         """Get historical press release data from file or from API"""
         data_info = self._data_info[data_type]
 
-        assert (
-                symbol in self.symbols
-        ), f"DataStore does not contain symbol '{symbol}'."
+        assert symbol in self.symbols, f"DataStore does not contain symbol '{symbol}'."
 
         path = data_info.get_path(symbol)
 
