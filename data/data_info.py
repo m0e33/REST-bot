@@ -122,3 +122,52 @@ class StockPeerRelationDataInfo:
             peer_data.append(peer_dict)
 
         return peer_data
+
+
+class InstitutionalHoldersRelationDataInfo:
+    """Information to represent institutional holder relations between symbols"""
+
+    def __init__(self, base_path, api: APIAdapter, symbols: List[str]):
+        self._base_path = base_path
+        self._path = f"{self._base_path}relation_instholders.csv"
+        self._api = api
+        self.symbols = symbols
+        self.fields = ["symbol"] + symbols
+
+    def get_path(self):
+        """Get file path for industry relation file"""
+        return self._path
+
+    def get_data(self):
+        """Get stock peer relation of symbols via api"""
+
+        companies = list(
+            filter(
+                None,
+                [self._api.get_institutional_holders(symbol) for symbol in self.fields],
+            )
+        )
+
+        companies_sorted_and_stripped = [
+            sorted(holders, key=lambda holder: int(holder["shares"]), reverse=True)[:10]
+            for holders in companies
+        ]
+
+        company_holders = {}
+        for idx, holders in enumerate(companies_sorted_and_stripped):
+            company_holders[self.symbols[idx]] = [
+                holder["holder"] for holder in holders
+            ]
+
+        holder_data = []
+        for symbol in self.symbols:
+            holder_dict = {}
+            holder_dict["symbol"] = symbol
+            for company, holders in company_holders.items():
+                if bool(set(holders) & set(company_holders[symbol])):
+                    holder_dict[company] = 1
+                else:
+                    holder_dict[company] = 0
+            holder_data.append(holder_dict)
+
+        return holder_data
