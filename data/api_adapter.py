@@ -30,6 +30,12 @@ class APIAdapter:
         path = "standard_industrial_classification/" + f"?symbol={symbol}&"
         return self._request(path, api_version=4)
 
+    def get_stock_peers(self, symbol):
+        """Get Stock peers of symbol"""
+
+        path = "stock_peers/" + f"?symbol={symbol}&"
+        return self._request(path, api_version=4)
+
     def _request(self, path: str, api_version: int = 3):
         if api_version == 3:
             url = self.base_url_v3 + path + f"apikey={self._key}"

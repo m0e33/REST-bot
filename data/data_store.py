@@ -7,7 +7,12 @@ from typing import List
 
 from data.api_adapter import APIAdapter
 from data.csv_writer import write_csv, read_csv_to_json_array
-from data.data_info import PriceDataInfo, PressDataInfo, IndustryRelationDataInfo
+from data.data_info import (
+    PriceDataInfo,
+    PressDataInfo,
+    IndustryRelationDataInfo,
+    StockPeerRelationDataInfo,
+)
 
 
 class DataType(Enum):
@@ -16,6 +21,7 @@ class DataType(Enum):
     PRICE_DATA = "price_data"
     PRESS_DATA = "press_data"
     INDUSTRY_RELATION_DATA = "industry_relation_data"
+    STOCK_PEER_RELATION_DATA = "stock_peer_relation_data"
 
 
 def flush_store_files():
@@ -53,7 +59,10 @@ class DataStore:
         self._relation_data_info = {
             DataType.INDUSTRY_RELATION_DATA: IndustryRelationDataInfo(
                 DataStore.STORAGE_PATH, self.api, self.symbols
-            )
+            ),
+            DataType.STOCK_PEER_RELATION_DATA: StockPeerRelationDataInfo(
+                DataStore.STORAGE_PATH, self.api, self.symbols
+            ),
         }
 
     def rebuild(self):
@@ -69,6 +78,7 @@ class DataStore:
             self._build_data_for_symbol(symbol, DataType.PRESS_DATA)
             self._build_data_for_symbol(symbol, DataType.PRICE_DATA)
         self._build_data_for_symbols(DataType.INDUSTRY_RELATION_DATA)
+        self._build_data_for_symbols(DataType.STOCK_PEER_RELATION_DATA)
 
     def get_price_data(self, symbol: str):
         """Get historical price data from file or from API"""
@@ -86,6 +96,12 @@ class DataStore:
         """Get industry relation data from file or from API"""
         return self._get_relation_data_from_file_or_rebuild(
             DataType.INDUSTRY_RELATION_DATA
+        )
+
+    def get_stock_peer_relation_data(self):
+        """Get stock peer relation data from file or from API"""
+        return self._get_relation_data_from_file_or_rebuild(
+            DataType.STOCK_PEER_RELATION_DATA
         )
 
     def _build_data_for_symbol(self, symbol: str, data_type: DataType):

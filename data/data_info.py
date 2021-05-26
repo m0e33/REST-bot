@@ -48,11 +48,11 @@ class PressDataInfo:
 
     def get_data(self, symbol: str):
         """Get press release data via api"""
-        return self._api.get_press_releases(symbol[0], self.limit)
+        return self._api.get_press_releases(symbol, self.limit)
 
 
 class IndustryRelationDataInfo:
-    """Information to represent different relations between symbols"""
+    """Information for representing industry relation between symbols"""
 
     def __init__(self, base_path, api: APIAdapter, symbols: List[str]):
         self._base_path = base_path
@@ -81,10 +81,44 @@ class IndustryRelationDataInfo:
             industry_dict = {}
             industry_dict["symbol"] = symbol
             for company, industry in symbols_industries.items():
-                if symbols_industries[symbol] == industry:
-                    industry_dict[company] = 1
-                else:
-                    industry_dict[company] = 0
+                industry_dict[company] = (
+                    1 if symbols_industries[symbol] == industry else 0
+                )
             industry_data.append(industry_dict)
 
         return industry_data
+
+
+class StockPeerRelationDataInfo:
+    """Information to represent stock peer relations between symbols"""
+
+    def __init__(self, base_path, api: APIAdapter, symbols: List[str]):
+        self._base_path = base_path
+        self._path = f"{self._base_path}relation_peers.csv"
+        self._api = api
+        self.symbols = symbols
+        self.fields = ["symbol"] + symbols
+
+    def get_path(self):
+        """Get file path for industry relation file"""
+        return self._path
+
+    def get_data(self):
+        """Get stock peer relation of symbols via api"""
+
+        companies = list(
+            filter(None, [self._api.get_stock_peers(symbol) for symbol in self.fields])
+        )
+        company_peers = {
+            company[0]["symbol"]: company[0]["peersList"] for company in companies
+        }
+
+        peer_data = []
+        for symbol in self.symbols:
+            peer_dict = {}
+            peer_dict["symbol"] = symbol
+            for company, peers in company_peers.items():
+                peer_dict[company] = 1 if symbol in peers else 0
+            peer_data.append(peer_dict)
+
+        return peer_data
