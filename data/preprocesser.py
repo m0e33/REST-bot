@@ -16,4 +16,3 @@ class Preprocessor:
         Public method for linter
         """
         pass
-
