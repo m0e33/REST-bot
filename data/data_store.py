@@ -113,6 +113,13 @@ class DataStore:
             DataType.STOCK_PEER_RELATION_DATA
         )
 
+    def get_institutional_holder_relation_data(self):
+        """Get institutional holders relation data from file or from API"""
+        return self._get_relation_data_from_file_or_rebuild(
+            DataType.INSTITUTIONAL_HOLDERS_RELATION_DATA
+        )
+
+
     def _build_data_for_symbol(self, symbol: str, data_type: DataType):
         data_info = self._basic_data_info[data_type]
 

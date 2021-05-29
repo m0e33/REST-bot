@@ -139,7 +139,7 @@ class InstitutionalHoldersRelationDataInfo:
         return self._path
 
     def get_data(self):
-        """Get stock peer relation of symbols via api"""
+        """Get institutional holders relation of symbols via api"""
 
         companies = list(
             filter(
