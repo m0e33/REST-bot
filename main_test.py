@@ -8,4 +8,3 @@ if __name__ == "__main__":
     data_store = DataStore(symbols, "2021-01-01", "2021-04-01")
     data_store.rebuild()
     print(data_store.get_press_release_data("AAPL"))
-    print("hello test print")
