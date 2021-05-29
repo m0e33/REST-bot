@@ -136,3 +136,4 @@ dmypy.json
 
 # application
 data/storage/*
+glove.6B.300d.txt
