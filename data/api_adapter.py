@@ -42,6 +42,12 @@ class APIAdapter:
         path = "institutional-holder/" + f"{symbol}?"
         return self._request(path)
 
+    def get_stock_news(self, symbol: str, limit: int):
+        """Get all stock news for a symbol"""
+
+        path = "stock_news" + f"?tickers={symbol}&limit={limit}&"
+        return self._request(path)
+
     def _request(self, path: str, api_version: int = 3):
         if api_version == 3:
             url = self.base_url_v3 + path + f"apikey={self._key}"
