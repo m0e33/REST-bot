@@ -4,25 +4,38 @@ price data and relation data. The specifics of those data
 types are handled here.
 """
 from typing import List
-
+from abc import ABC, abstractmethod
 from data.api_adapter import APIAdapter
+from data.utils import build_holder_relation
 
 
-class PriceDataInfo:
+class BaseDataInfo(ABC):
+    """Base class for basic data, e.g price, press, stock news"""
+
+    def __init__(self, base_path: str, api: APIAdapter):
+        self._base_path = base_path
+        self._api = api
+        self._path = ""
+
+    def get_path(self, symbol):
+        """Returns file path for data"""
+        return f"{self._path}{symbol}.csv"
+
+    @abstractmethod
+    def get_data(self, symbol):
+        """Get's data for a symbol"""
+
+
+class PriceDataInfo(BaseDataInfo):
     """Information for Historical Price Data"""
 
     def __init__(self, base_path, api: APIAdapter):
-        self._base_path = base_path
+        super().__init__(base_path, api)
         self._path = f"{self._base_path}prices_{self.start}_{self.end}_"
-        self._api = api
 
     start = "2021-01-01"
     end = "2021-04-01"
     fields = ["date", "open", "close", "high", "low", "vwap"]
-
-    def get_path(self, symbol):
-        """File path for price data"""
-        return f"{self._path}{symbol}.csv"
 
     def get_data(self, symbol: str):
         """Get price data data via api"""
@@ -31,59 +44,61 @@ class PriceDataInfo:
         ]
 
 
-class PressDataInfo:
+class PressDataInfo(BaseDataInfo):
     """Information for Press Release Data"""
 
     def __init__(self, base_path, api: APIAdapter):
-        self._base_path = base_path
+        super().__init__(base_path, api)
         self._path = f"{self._base_path}press_limit={self.limit}_"
-        self._api = api
 
     limit = 100
     fields = ["symbol", "date", "title", "text"]
-
-    def get_path(self, symbol):
-        """File path for press release data"""
-        return f"{self._path}{symbol}.csv"
 
     def get_data(self, symbol: str):
         """Get press release data via api"""
         return self._api.get_press_releases(symbol, self.limit)
 
 
-class StockNewsDataInfo:
+class StockNewsDataInfo(BaseDataInfo):
     """Information for Stock News Data"""
 
     def __init__(self, base_path, api: APIAdapter):
-        self._base_path = base_path
+        super().__init__(base_path, api)
         self._path = f"{self._base_path}stock_news_limit={self.limit}_"
-        self._api = api
 
     limit = 100
     fields = ["symbol", "publishedDate", "title", "text", "site", "url"]
-
-    def get_path(self, symbol):
-        """File path for press release data"""
-        return f"{self._path}{symbol}.csv"
 
     def get_data(self, symbol: str):
         """Get press release data via api"""
         return self._api.get_stock_news(symbol, self.limit)
 
 
-class IndustryRelationDataInfo:
-    """Information for representing industry relation between symbols"""
+class BaseRelationDataInfo(ABC):
+    """Base class for relational data, e.g industry, stock peers, holders"""
 
     def __init__(self, base_path, api: APIAdapter, symbols: List[str]):
         self._base_path = base_path
-        self._path = f"{self._base_path}relation_industry.csv"
         self._api = api
         self.symbols = symbols
+        self._path = ""
         self.fields = ["symbol"] + symbols
 
     def get_path(self):
-        """Get file path for industry relation file"""
+        """Returns file path for data"""
         return self._path
+
+    @abstractmethod
+    def get_data(self):
+        """Get's data for all symbols and build relation matrix"""
+
+
+class IndustryRelationDataInfo(BaseRelationDataInfo):
+    """Information for representing industry relation between symbols"""
+
+    def __init__(self, base_path, api: APIAdapter, symbols: List[str]):
+        super().__init__(base_path, api, symbols)
+        self._path = f"{self._base_path}relation_industry.csv"
 
     def get_data(self):
         """Get industry relation of symbols via api"""
@@ -109,19 +124,12 @@ class IndustryRelationDataInfo:
         return industry_data
 
 
-class StockPeerRelationDataInfo:
+class StockPeerRelationDataInfo(BaseRelationDataInfo):
     """Information to represent stock peer relations between symbols"""
 
     def __init__(self, base_path, api: APIAdapter, symbols: List[str]):
-        self._base_path = base_path
+        super().__init__(base_path, api, symbols)
         self._path = f"{self._base_path}relation_peers.csv"
-        self._api = api
-        self.symbols = symbols
-        self.fields = ["symbol"] + symbols
-
-    def get_path(self):
-        """Get file path for industry relation file"""
-        return self._path
 
     def get_data(self):
         """Get stock peer relation of symbols via api"""
@@ -144,100 +152,31 @@ class StockPeerRelationDataInfo:
         return peer_data
 
 
-class InstitutionalHoldersRelationDataInfo:
+class InstitutionalHoldersRelationDataInfo(BaseRelationDataInfo):
     """Information to represent institutional holder relations between symbols"""
 
     def __init__(self, base_path, api: APIAdapter, symbols: List[str]):
-        self._base_path = base_path
+        super().__init__(base_path, api, symbols)
         self._path = f"{self._base_path}relation_instholders.csv"
-        self._api = api
-        self.symbols = symbols
-        self.fields = ["symbol"] + symbols
-
-    def get_path(self):
-        """Get file path for industry relation file"""
-        return self._path
 
     def get_data(self):
         """Get institutional holders relation of symbols via api"""
 
-        companies = list(
-            filter(
-                None,
-                [self._api.get_institutional_holders(symbol) for symbol in self.fields],
-            )
+        return build_holder_relation(
+            self.symbols, self._api.get_institutional_holders, self.fields, threshold=2
         )
 
-        companies_sorted_and_stripped = [
-            sorted(holders, key=lambda holder: int(holder["shares"]), reverse=True)[:10]
-            for holders in companies
-        ]
 
-        company_holders = {}
-        for idx, holders in enumerate(companies_sorted_and_stripped):
-            company_holders[self.symbols[idx]] = [
-                holder["holder"] for holder in holders
-            ]
-
-        holder_data = []
-        for symbol in self.symbols:
-            holder_dict = {}
-            holder_dict["symbol"] = symbol
-            for company, holders in company_holders.items():
-                if bool(set(holders) & set(company_holders[symbol])):
-                    holder_dict[company] = 1
-                else:
-                    holder_dict[company] = 0
-            holder_data.append(holder_dict)
-
-        return holder_data
-
-
-class MutualHoldersRelationDataInfo:
+class MutualHoldersRelationDataInfo(BaseRelationDataInfo):
     """Information to represent mutual holder relations between symbols"""
 
     def __init__(self, base_path, api: APIAdapter, symbols: List[str]):
-        self._base_path = base_path
+        super().__init__(base_path, api, symbols)
         self._path = f"{self._base_path}relation_mutualholders.csv"
-        self._api = api
-        self.symbols = symbols
-        self.fields = ["symbol"] + symbols
-
-    def get_path(self):
-        """Get file path for industry relation file"""
-        return self._path
 
     def get_data(self):
         """Get mutual holders relation of symbols via api"""
 
-        companies = list(
-            filter(
-                None,
-                [self._api.get_mutual_holders(symbol) for symbol in self.fields],
-            )
+        return build_holder_relation(
+            self.symbols, self._api.get_institutional_holders, self.fields, threshold=5
         )
-
-        companies_sorted_and_stripped = [
-            sorted(holders, key=lambda holder: int(holder["shares"]), reverse=True)[:10]
-            for holders in companies
-        ]
-
-        company_holders = {}
-        for idx, holders in enumerate(companies_sorted_and_stripped):
-            company_holders[self.symbols[idx]] = [
-                holder["holder"] for holder in holders
-            ]
-
-        holder_data = []
-        for symbol in self.symbols:
-            holder_dict = {}
-            holder_dict["symbol"] = symbol
-            for company, holders in company_holders.items():
-                # Threshold to make the relation a bit more meaningful
-                if len(set(holders) & set(company_holders[symbol])) > 5:
-                    holder_dict[company] = 1
-                else:
-                    holder_dict[company] = 0
-            holder_data.append(holder_dict)
-
-        return holder_data
