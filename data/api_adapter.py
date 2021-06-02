@@ -46,6 +46,11 @@ class APIAdapter:
         """Get all stock news for a symbol"""
 
         path = "stock_news" + f"?tickers={symbol}&limit={limit}&"
+
+    def get_mutual_holders(self, symbol):
+        """Get all mutual holders for a symbol"""
+
+        path = "mutual-fund-holder/" + f"{symbol}?"
         return self._request(path)
 
     def _request(self, path: str, api_version: int = 3):

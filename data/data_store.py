@@ -14,6 +14,7 @@ from data.data_info import (
     StockPeerRelationDataInfo,
     InstitutionalHoldersRelationDataInfo,
     StockNewsDataInfo,
+    MutualHoldersRelationDataInfo,
 )
 
 
@@ -26,6 +27,7 @@ class DataType(Enum):
     STOCK_PEER_RELATION_DATA = "stock_peer_relation_data"
     INSTITUTIONAL_HOLDERS_RELATION_DATA = "inst_holders_relation_data"
     STOCK_NEWS_DATA = "stock_news_data"
+    MUTUAL_HOLDERS_RELATION_DATA = "mutual_holders_relation_data"
 
 
 def flush_store_files():
@@ -73,6 +75,9 @@ class DataStore:
             DataType.INSTITUTIONAL_HOLDERS_RELATION_DATA: InstitutionalHoldersRelationDataInfo(
                 DataStore.STORAGE_PATH, self.api, self.symbols
             ),
+            DataType.MUTUAL_HOLDERS_RELATION_DATA: MutualHoldersRelationDataInfo(
+                DataStore.STORAGE_PATH, self.api, self.symbols
+            ),
         }
 
     def rebuild(self):
@@ -94,6 +99,7 @@ class DataStore:
         self._build_data_for_symbols(DataType.INDUSTRY_RELATION_DATA)
         self._build_data_for_symbols(DataType.STOCK_PEER_RELATION_DATA)
         self._build_data_for_symbols(DataType.INSTITUTIONAL_HOLDERS_RELATION_DATA)
+        self._build_data_for_symbols(DataType.MUTUAL_HOLDERS_RELATION_DATA)
 
     def get_price_data(self, symbol: str):
         """Get historical price data from file or from API"""
@@ -129,6 +135,11 @@ class DataStore:
         """Get stock news data for all symbols"""
         return self._get_basic_data_for_from_file_or_rebuild(
             symbol, DataType.STOCK_NEWS_DATA
+
+    def get_mutual_holder_relation_data(self):
+        """Get mutual holders relation data from file or from API"""
+        return self._get_relation_data_from_file_or_rebuild(
+            DataType.MUTUAL_HOLDERS_RELATION_DATA
         )
 
     def _build_data_for_symbol(self, symbol: str, data_type: DataType):
