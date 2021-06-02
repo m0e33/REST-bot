@@ -51,6 +51,26 @@ class PressDataInfo:
         return self._api.get_press_releases(symbol, self.limit)
 
 
+class StockNewsDataInfo:
+    """Information for Stock News Data"""
+
+    def __init__(self, base_path, api: APIAdapter):
+        self._base_path = base_path
+        self._path = f"{self._base_path}stock_news_limit={self.limit}_"
+        self._api = api
+
+    limit = 100
+    fields = ["symbol", "publishedDate", "title", "text", "site", "url"]
+
+    def get_path(self, symbol):
+        """File path for press release data"""
+        return f"{self._path}{symbol}.csv"
+
+    def get_data(self, symbol: str):
+        """Get press release data via api"""
+        return self._api.get_stock_news(symbol, self.limit)
+
+
 class IndustryRelationDataInfo:
     """Information for representing industry relation between symbols"""
 
