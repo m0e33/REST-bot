@@ -42,6 +42,12 @@ class APIAdapter:
         path = "institutional-holder/" + f"{symbol}?"
         return self._request(path)
 
+    def get_mutual_holders(self, symbol):
+        """Get all mutual holders for a symbol"""
+
+        path = "mutual-fund-holder/" + f"{symbol}?"
+        return self._request(path)
+
     def _request(self, path: str, api_version: int = 3):
         if api_version == 3:
             url = self.base_url_v3 + path + f"apikey={self._key}"
