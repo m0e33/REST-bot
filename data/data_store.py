@@ -148,18 +148,16 @@ class DataStore:
 
         path = data_info.get_path(symbol)
 
-        if not _check_file(path):
-            data = data_info.get_data(symbol)
-            write_csv(path, data, data_info.fields)
+        data = data_info.get_data(symbol)
+        write_csv(path, data, data_info.fields)
 
     def _build_data_for_symbols(self, data_type: DataType):
         data_info = self._relation_data_info[data_type]
 
         path = data_info.get_path()
 
-        if not _check_file(path):
-            data = data_info.get_data()
-            write_csv(path, data, data_info.fields)
+        data = data_info.get_data()
+        write_csv(path, data, data_info.fields)
 
     def _get_basic_data_for_from_file_or_rebuild(
         self, symbol: str, data_type: DataType
@@ -171,11 +169,10 @@ class DataStore:
 
         path = data_info.get_path(symbol)
 
-        if _check_file(path):
-            data_info = read_csv_to_json_array(path, data_info.fields)
-        else:
+        if not _check_file(path):
             self._build_data_for_symbol(symbol, DataType.PRESS_DATA)
-            data_info = read_csv_to_json_array(path, data_info.fields)
+
+        data_info = read_csv_to_json_array(path, data_info.fields)
 
         return data_info
 
@@ -185,10 +182,9 @@ class DataStore:
 
         path = data_info.get_path()
 
-        if _check_file(path):
-            data_info = read_csv_to_json_array(path, data_info.fields)
-        else:
+        if not _check_file(path):
             self._build_data_for_symbols(DataType.PRESS_DATA)
-            data_info = read_csv_to_json_array(path, data_info.fields)
 
-        return data_info
+        data = read_csv_to_json_array(path, data_info.fields)
+
+        return data
