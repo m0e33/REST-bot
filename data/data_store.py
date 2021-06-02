@@ -135,6 +135,7 @@ class DataStore:
         """Get stock news data for all symbols"""
         return self._get_basic_data_for_from_file_or_rebuild(
             symbol, DataType.STOCK_NEWS_DATA
+        )
 
     def get_mutual_holder_relation_data(self):
         """Get mutual holders relation data from file or from API"""
