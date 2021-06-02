@@ -13,6 +13,7 @@ from data.data_info import (
     IndustryRelationDataInfo,
     StockPeerRelationDataInfo,
     InstitutionalHoldersRelationDataInfo,
+    StockNewsDataInfo,
     MutualHoldersRelationDataInfo,
 )
 
@@ -25,6 +26,7 @@ class DataType(Enum):
     INDUSTRY_RELATION_DATA = "industry_relation_data"
     STOCK_PEER_RELATION_DATA = "stock_peer_relation_data"
     INSTITUTIONAL_HOLDERS_RELATION_DATA = "inst_holders_relation_data"
+    STOCK_NEWS_DATA = "stock_news_data"
     MUTUAL_HOLDERS_RELATION_DATA = "mutual_holders_relation_data"
 
 
@@ -59,6 +61,9 @@ class DataStore:
         self._basic_data_info = {
             DataType.PRICE_DATA: PriceDataInfo(DataStore.STORAGE_PATH, self.api),
             DataType.PRESS_DATA: PressDataInfo(DataStore.STORAGE_PATH, self.api),
+            DataType.STOCK_NEWS_DATA: StockNewsDataInfo(
+                DataStore.STORAGE_PATH, self.api
+            ),
         }
         self._relation_data_info = {
             DataType.INDUSTRY_RELATION_DATA: IndustryRelationDataInfo(
@@ -88,6 +93,7 @@ class DataStore:
         for symbol in self.symbols:
             self._build_data_for_symbol(symbol, DataType.PRESS_DATA)
             self._build_data_for_symbol(symbol, DataType.PRICE_DATA)
+            self._build_data_for_symbol(symbol, DataType.STOCK_NEWS_DATA)
 
         # Get relation data for all symbols
         self._build_data_for_symbols(DataType.INDUSTRY_RELATION_DATA)
@@ -124,6 +130,11 @@ class DataStore:
         return self._get_relation_data_from_file_or_rebuild(
             DataType.INSTITUTIONAL_HOLDERS_RELATION_DATA
         )
+
+    def get_stock_news_data(self, symbol: str):
+        """Get stock news data for all symbols"""
+        return self._get_basic_data_for_from_file_or_rebuild(
+            symbol, DataType.STOCK_NEWS_DATA
 
     def get_mutual_holder_relation_data(self):
         """Get mutual holders relation data from file or from API"""
