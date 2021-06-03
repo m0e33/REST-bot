@@ -91,25 +91,25 @@ class DataStore:
 
         # Get price and press data for each symbols
         for symbol in self.symbols:
-            self._build_data_for_symbol(symbol, DataType.PRESS_DATA)
-            self._build_data_for_symbol(symbol, DataType.PRICE_DATA)
-            self._build_data_for_symbol(symbol, DataType.STOCK_NEWS_DATA)
+            self._maybe_build_data_for_symbol(symbol, DataType.PRESS_DATA)
+            self._maybe_build_data_for_symbol(symbol, DataType.PRICE_DATA)
+            self._maybe_build_data_for_symbol(symbol, DataType.STOCK_NEWS_DATA)
 
         # Get relation data for all symbols
-        self._build_data_for_symbols(DataType.INDUSTRY_RELATION_DATA)
-        self._build_data_for_symbols(DataType.STOCK_PEER_RELATION_DATA)
-        self._build_data_for_symbols(DataType.INSTITUTIONAL_HOLDERS_RELATION_DATA)
-        self._build_data_for_symbols(DataType.MUTUAL_HOLDERS_RELATION_DATA)
+        self._maybe_build_data_for_symbols(DataType.INDUSTRY_RELATION_DATA)
+        self._maybe_build_data_for_symbols(DataType.STOCK_PEER_RELATION_DATA)
+        self._maybe_build_data_for_symbols(DataType.INSTITUTIONAL_HOLDERS_RELATION_DATA)
+        self._maybe_build_data_for_symbols(DataType.MUTUAL_HOLDERS_RELATION_DATA)
 
     def get_price_data(self, symbol: str):
         """Get historical price data from file or from API"""
-        return self._get_basic_data_for_from_file_or_rebuild(
+        return self._get_basic_data_for_symbol_from_file_or_rebuild(
             symbol, DataType.PRICE_DATA
         )
 
     def get_press_release_data(self, symbol: str):
         """Get historical press release data from file or from API"""
-        return self._get_basic_data_for_from_file_or_rebuild(
+        return self._get_basic_data_for_symbol_from_file_or_rebuild(
             symbol, DataType.PRESS_DATA
         )
 
@@ -133,7 +133,7 @@ class DataStore:
 
     def get_stock_news_data(self, symbol: str):
         """Get stock news data for all symbols"""
-        return self._get_basic_data_for_from_file_or_rebuild(
+        return self._get_basic_data_for_symbol_from_file_or_rebuild(
             symbol, DataType.STOCK_NEWS_DATA
         )
 
@@ -143,39 +143,31 @@ class DataStore:
             DataType.MUTUAL_HOLDERS_RELATION_DATA
         )
 
-    def _build_data_for_symbol(self, symbol: str, data_type: DataType):
+    def _maybe_build_data_for_symbol(self, symbol: str, data_type: DataType):
         data_info = self._basic_data_info[data_type]
 
         path = data_info.get_path(symbol)
-
         if not _check_file(path):
             data = data_info.get_data(symbol)
             write_csv(path, data, data_info.fields)
 
-    def _build_data_for_symbols(self, data_type: DataType):
+    def _maybe_build_data_for_symbols(self, data_type: DataType):
         data_info = self._relation_data_info[data_type]
 
         path = data_info.get_path()
-
         if not _check_file(path):
             data = data_info.get_data()
             write_csv(path, data, data_info.fields)
 
-    def _get_basic_data_for_from_file_or_rebuild(
+    def _get_basic_data_for_symbol_from_file_or_rebuild(
         self, symbol: str, data_type: DataType
     ):
         """Get historical press release data from file or from API"""
         data_info = self._basic_data_info[data_type]
-
         assert symbol in self.symbols, f"DataStore does not contain symbol '{symbol}'."
 
-        path = data_info.get_path(symbol)
-
-        if _check_file(path):
-            data_info = read_csv_to_json_array(path, data_info.fields)
-        else:
-            self._build_data_for_symbol(symbol, DataType.PRESS_DATA)
-            data_info = read_csv_to_json_array(path, data_info.fields)
+        self._maybe_build_data_for_symbol(symbol, DataType.PRESS_DATA)
+        data_info = read_csv_to_json_array(data_info.get_path(symbol), data_info.fields)
 
         return data_info
 
@@ -183,12 +175,7 @@ class DataStore:
         """Get historical press release data from file or from API"""
         data_info = self._relation_data_info[data_type]
 
-        path = data_info.get_path()
+        self._maybe_build_data_for_symbols(DataType.PRESS_DATA)
+        data = read_csv_to_json_array(data_info.get_path(), data_info.fields)
 
-        if _check_file(path):
-            data_info = read_csv_to_json_array(path, data_info.fields)
-        else:
-            self._build_data_for_symbols(DataType.PRESS_DATA)
-            data_info = read_csv_to_json_array(path, data_info.fields)
-
-        return data_info
+        return data
