@@ -64,6 +64,11 @@ class Preprocessor:
         apple_df["event_text"] = apple_df["event_text"].replace(
             np.nan, "Nothing happened"
         )
+
+        apple_df["symbol"] = apple_df["symbol"].replace(
+            np.nan, "AAPL"
+        )
+
     def get_feedback_for_event(self):
         """
         Preprocess feedback data
