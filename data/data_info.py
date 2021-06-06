@@ -51,7 +51,7 @@ class PressDataInfo(BaseDataInfo):
         super().__init__(base_path, api)
         self._path = f"{self._base_path}press_limit={self.limit}_"
 
-    limit = 100
+    limit = 20000
     fields = ["symbol", "date", "title", "text"]
 
     def get_data(self, symbol: str):
@@ -66,7 +66,7 @@ class StockNewsDataInfo(BaseDataInfo):
         super().__init__(base_path, api)
         self._path = f"{self._base_path}stock_news_limit={self.limit}_"
 
-    limit = 100
+    limit = 1000
     fields = ["symbol", "publishedDate", "title", "text", "site", "url"]
 
     def get_data(self, symbol: str):
