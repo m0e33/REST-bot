@@ -48,6 +48,7 @@ def _check_file(name: str):
     return os.path.exists(name)
 
 
+
 class DataStore:
     """DataStore for handling data delivery and caching API requests"""
 
