@@ -2,6 +2,7 @@
 from enum import Enum
 import pandas as pd
 import numpy as np
+import tensorflow as tf
 from data.data_store import DataStore
 from data.data_configuration import DataConfiguration
 from data.data_info import PriceDataInfo
@@ -38,6 +39,7 @@ class Preprocessor:
         self.data_cfg = data_cfg
         self.date_df = self._build_date_dataframe()
         self._events_df = pd.DataFrame()
+        self._gt_df = pd.DataFrame()
 
     def build_events_data_with_gt(self):
         """builds event data"""
@@ -48,9 +50,11 @@ class Preprocessor:
         )
 
         # join event_title & event_text columns
-        self._events_df["event"] = self._events_df["event_type"] + " " + self._events_df["event_text"]
+        self._events_df["event"] = (
+            self._events_df["event_type"] + " " + self._events_df["event_text"]
+        )
         self._events_df = self._events_df.drop(["event_type", "event_text"], axis=1)
-
+        self._events_df = self._events_df.astype({"event": object})
         # build multi-index dataframe per date and symbol
         #
         # The grouping with gt_trend is unnecessary here, because it holds the same grouping
@@ -58,7 +62,7 @@ class Preprocessor:
         # events_df dataframe
         self._events_df = (
             self._events_df.groupby(["date", "symbol", "gt_trend"])["event"]
-            .apply(lambda x: "|".join(x))
+            .apply(list)
             .reset_index()
         )
         self._events_df.set_index(["date", "symbol"], inplace=True)
@@ -66,8 +70,19 @@ class Preprocessor:
             self._events_df.index.levels[0].date, level=0
         )
 
+        self._gt_df = self._events_df["gt_trend"]
+        self._events_df = self._events_df["event"]
+
     def get_tf_dataset(self):
         """Return windowed dataset for model based on events_df"""
+        dates_count = len(self._events_df.index.levels[0])
+        symbols_count = len(self._events_df.index.levels[1])
+
+        # don't ask me..
+        np_stock_matrix = self._events_df.values.reshape(dates_count, symbols_count, -1)
+        ragged_t = tf.ragged.constant(np_stock_matrix)
+        print(ragged_t.shape)
+        print("stop")
 
     def _build_date_dataframe(self):
         dates = pd.date_range(self.data_cfg.start_str, self.data_cfg.end_str, freq="D")

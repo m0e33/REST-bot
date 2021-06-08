@@ -15,3 +15,5 @@ if __name__ == "__main__":
 
     prepro = Preprocessor(data_store, data_configuration)
     prepro.build_events_data_with_gt()
+
+    prepro.get_tf_dataset()
