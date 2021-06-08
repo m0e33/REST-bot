@@ -34,7 +34,7 @@ class PriceDataInfo(BaseDataInfo):
 
     def __init__(self, base_path, api: APIAdapter, data_cfg: DataConfiguration):
         super().__init__(base_path, api)
-        self.start = datetime.strftime(data_cfg.start + timedelta(days=1),
+        self.start = datetime.strftime(data_cfg.start,
                                        data_cfg.DATE_FORMAT)
         self.end = datetime.strftime(data_cfg.end + timedelta(days=1),
                                      data_cfg.DATE_FORMAT)
