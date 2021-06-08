@@ -2,18 +2,35 @@
 
 from typing import List
 from datetime import datetime
+from enum import Enum
+
+
+class GroundTruthMetric(Enum):
+    """ Different technical metrics of a stock from which we can choose to compute the gt """
+
+    OPEN = "open"
+    CLOSE = "close"
+    HIGH = "high"
+    LOW = "low"
+    VWAP = "vwap"
 
 
 class DataConfiguration:
-    """ Data configuration class"""
+    """Single source data configuration class"""
 
-    def __init__(self, symbols: List[str], start: str, end: str) -> None:
+    def __init__(
+        self,
+        symbols: List[str],
+        start: str,
+        end: str,
+        gt_metric: GroundTruthMetric = GroundTruthMetric.CLOSE,
+    ) -> None:
         self.start_str = start
         self.start = datetime.strptime(start, self.DATE_FORMAT).date()
 
         self.end_str = end
         self.end = datetime.strptime(end, self.DATE_FORMAT).date()
-
+        self.gt_metric = gt_metric
         self.symbols = symbols
 
     DATE_FORMAT = "%Y-%m-%d"
