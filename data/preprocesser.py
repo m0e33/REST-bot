@@ -37,35 +37,34 @@ class Preprocessor:
         self.data_store = data_store
         self.data_cfg = data_cfg
         self.date_df = self._build_date_dataframe()
+        self._events_df = pd.DataFrame()
 
     def build_events_data_with_gt(self):
         """builds event data"""
 
         # vertically concatenate all symbols and their events
-        events_df = pd.concat(
+        self._events_df = pd.concat(
             [self._build_df_for_symbol(symbol) for symbol in self.data_cfg.symbols]
         )
 
         # join event_title & event_text columns
-        events_df["event"] = events_df["event_type"] + " " + events_df["event_text"]
-        events_df = events_df.drop(["event_type", "event_text"], axis=1)
+        self._events_df["event"] = self._events_df["event_type"] + " " + self._events_df["event_text"]
+        self._events_df = self._events_df.drop(["event_type", "event_text"], axis=1)
 
         # build multi-index dataframe per date and symbol
         #
         # The grouping with gt_trend is unnecessary here, because it holds the same grouping
         # information as 'date'. We have to list it here to copy it over to the new
         # events_df dataframe
-        events_df = (
-            events_df.groupby(["date", "symbol", "gt_trend"])["event"]
+        self._events_df = (
+            self._events_df.groupby(["date", "symbol", "gt_trend"])["event"]
             .apply(lambda x: "|".join(x))
             .reset_index()
         )
-        events_df.set_index(["date", "symbol"], inplace=True)
-        events_df.index = events_df.index.set_levels(
-            events_df.index.levels[0].date, level=0
+        self._events_df.set_index(["date", "symbol"], inplace=True)
+        self._events_df.index = self._events_df.index.set_levels(
+            self._events_df.index.levels[0].date, level=0
         )
-
-        return events_df
 
     def get_tf_dataset(self):
         """Return windowed dataset for model based on events_df"""
