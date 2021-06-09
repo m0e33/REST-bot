@@ -106,6 +106,11 @@ class Preprocessor:
         dates_count = len(events_df.groupby(level=0))
         symbols_count = len(events_df.groupby(level=1))
 
+        assert sliding_window_length < dates_count, (
+            f"sliding window length ({sliding_window_length}) "
+            f"does exceed date count ({dates_count}) in dataset."
+        )
+
         # build the input tensor
         # we have to use ragged tensor here, since we don't know how many events
         # per date and symbol there are
@@ -223,7 +228,7 @@ class Preprocessor:
         actual_test_split = 1 - self.train_cfg.test_split
 
         # since np.split does not take hierarchical indexing into account
-        # but rather flattens the index we have to make sure not to split
+        # but rather flattens the index, we have to make sure not to split
         # in the middle of a day
         dates_count = len(events_df.index.levels[0])
         symbols_count = len(events_df.index.levels[1])
