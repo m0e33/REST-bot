@@ -16,4 +16,8 @@ if __name__ == "__main__":
     prepro = Preprocessor(data_store, data_configuration)
     prepro.build_events_data_with_gt()
 
-    prepro.get_tf_dataset()
+    ds = prepro.get_tf_dataset()
+
+    for example_inputs, example_labels in ds.take(1):
+        print(f'Inputs shape (batch, time, features): {example_inputs.shape}')
+        print(f'Labels shape (batch, time, features): {example_labels.shape}')

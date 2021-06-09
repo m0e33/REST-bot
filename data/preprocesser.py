@@ -55,11 +55,13 @@ class Preprocessor:
         )
         self._events_df = self._events_df.drop(["event_type", "event_text"], axis=1)
         self._events_df = self._events_df.astype({"event": object})
-        # build multi-index dataframe per date and symbol
+
+        # build multi-index dataframe per date and symbol to later generate tensors
+        # with the right shape easily
         #
         # The grouping with gt_trend is unnecessary here, because it holds the same grouping
-        # information as 'date'. We have to list it here to copy it over to the new
-        # events_df dataframe
+        # information as 'date' and 'symbol' combined. We have to list it here in order
+        # to copy it over to the new events_df dataframe
         self._events_df = (
             self._events_df.groupby(["date", "symbol", "gt_trend"])["event"]
             .apply(list)
@@ -75,14 +77,45 @@ class Preprocessor:
 
     def get_tf_dataset(self):
         """Return windowed dataset for model based on events_df"""
+
+        sliding_window_length = self.data_cfg.stock_context_days
+
         dates_count = len(self._events_df.index.levels[0])
         symbols_count = len(self._events_df.index.levels[1])
 
-        # don't ask me..
-        np_stock_matrix = self._events_df.values.reshape(dates_count, symbols_count, -1)
-        ragged_t = tf.ragged.constant(np_stock_matrix)
-        print(ragged_t.shape)
-        print("stop")
+        # build the input tensor
+        np_stock_matrix = self._events_df.values.reshape(dates_count, symbols_count, 1)
+        events_ragged_t = tf.ragged.constant(np_stock_matrix)
+        events_ragged_t = tf.squeeze(events_ragged_t, axis=[2])
+
+        # timeseries_dataset_from_array only takes eager tensors with defined shape.
+        # The last dimension of the ragged tensor is padded to match the longest
+        # element in this dimension
+        events_t = events_ragged_t.to_tensor()
+
+        # build the output tensor
+        np_gt_trend_matrix = self._gt_df.values.reshape(dates_count, symbols_count, 1)
+
+        # since the 'timeseries_dataset_from_array' documentation states:
+        #
+        # "targets[i] should be the target corresponding to the window that starts at index i"
+        #
+        # we have to 'shift' the gt_tensor #{sliding_window_length} time steps 'back in time',
+        # so that target[1] yields the gt for the first window, which otherwise would be at
+        # target[{sliding_window_length}]
+        np_gt_trend_matrix = np.roll(
+            np_gt_trend_matrix, shift=sliding_window_length, axis=0
+        )
+
+        gt_trend_t = tf.constant(np_gt_trend_matrix)
+
+        return tf.keras.preprocessing.timeseries_dataset_from_array(
+            data=events_t,
+            targets=gt_trend_t,
+            sequence_length=sliding_window_length,
+            sequence_stride=1,
+            batch_size=32,
+        )
 
     def _build_date_dataframe(self):
         dates = pd.date_range(self.data_cfg.start_str, self.data_cfg.end_str, freq="D")
