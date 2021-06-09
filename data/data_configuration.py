@@ -18,7 +18,7 @@ class GroundTruthMetric(Enum):
 class DataConfiguration:
     """Single source data configuration class"""
 
-    #pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         symbols: List[str],

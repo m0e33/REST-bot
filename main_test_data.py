@@ -2,21 +2,25 @@
 
 from data.data_store import DataStore, DataConfiguration
 from data.preprocesser import Preprocessor
+from model.train_configuration import TrainConfiguration
 
 if __name__ == "__main__":
-    data_configuration = DataConfiguration(
+    data_cfg = DataConfiguration(
         ["AAPL", "ACN", "CDW", "NFLX"],
         "2020-12-29",
-        "2021-04-06"
+        "2021-04-06",
+        stock_context_days = 5
     )
 
-    data_store = DataStore(data_configuration)
+    train_cfg = TrainConfiguration(val_split=0.2, test_split=0.1)
+
+    data_store = DataStore(data_cfg)
     data_store.build()
 
-    prepro = Preprocessor(data_store, data_configuration)
+    prepro = Preprocessor(data_store, data_cfg, train_cfg)
     prepro.build_events_data_with_gt()
 
-    ds = prepro.get_tf_dataset()
+    ds = prepro.get_test_ds()
 
     for example_inputs, example_labels in ds.take(1):
         print(f'Inputs shape (batch, time, features): {example_inputs.shape}')
