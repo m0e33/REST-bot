@@ -5,9 +5,10 @@ types are handled here.
 """
 from typing import List
 from abc import ABC, abstractmethod
+from datetime import datetime, timedelta
 from data.api_adapter import APIAdapter
 from data.utils import build_holder_relation
-
+from data.data_configuration import DataConfiguration
 
 class BaseDataInfo(ABC):
     """Base class for basic data, e.g price, press, stock news"""
@@ -27,14 +28,18 @@ class BaseDataInfo(ABC):
 
 
 class PriceDataInfo(BaseDataInfo):
-    """Information for Historical Price Data"""
+    """
+    This is the ground truth for our prediction.
+    """
 
-    def __init__(self, base_path, api: APIAdapter):
+    def __init__(self, base_path, api: APIAdapter, data_cfg: DataConfiguration):
         super().__init__(base_path, api)
+        self.start = datetime.strftime(data_cfg.start,
+                                       data_cfg.DATE_FORMAT)
+        self.end = datetime.strftime(data_cfg.end + timedelta(days=1),
+                                     data_cfg.DATE_FORMAT)
         self._path = f"{self._base_path}prices_{self.start}_{self.end}_"
 
-    start = "2021-01-01"
-    end = "2021-04-01"
     fields = ["date", "open", "close", "high", "low", "vwap"]
 
     def get_data(self, symbol: str):
@@ -51,7 +56,7 @@ class PressDataInfo(BaseDataInfo):
         super().__init__(base_path, api)
         self._path = f"{self._base_path}press_limit={self.limit}_"
 
-    limit = 100
+    limit = 20000
     fields = ["symbol", "date", "title", "text"]
 
     def get_data(self, symbol: str):
@@ -66,7 +71,7 @@ class StockNewsDataInfo(BaseDataInfo):
         super().__init__(base_path, api)
         self._path = f"{self._base_path}stock_news_limit={self.limit}_"
 
-    limit = 100
+    limit = 1000
     fields = ["symbol", "publishedDate", "title", "text", "site", "url"]
 
     def get_data(self, symbol: str):
