@@ -9,7 +9,7 @@ if __name__ == "__main__":
         ["AAPL", "ACN", "CDW", "NFLX"],
         "2020-12-29",
         "2021-04-06",
-        stock_context_days = 30
+        stock_context_days=30
     )
 
     train_cfg = TrainConfiguration(val_split=0.2, test_split=0.1)
