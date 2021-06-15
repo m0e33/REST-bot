@@ -3,7 +3,6 @@
 import os
 import shutil
 from enum import Enum
-from typing import List
 
 from data.api_adapter import APIAdapter
 from data.csv_writer import write_csv, read_csv_to_json_array
@@ -16,6 +15,8 @@ from data.data_info import (
     StockNewsDataInfo,
     MutualHoldersRelationDataInfo,
 )
+
+from data.data_configuration import DataConfiguration
 
 
 class DataType(Enum):
@@ -53,13 +54,11 @@ class DataStore:
 
     STORAGE_PATH = "./data/storage/"
 
-    def __init__(self, symbols: List[str], start: str, end: str) -> None:
+    def __init__(self, data_cfg: DataConfiguration) -> None:
         self.api = APIAdapter()
-        self.symbols = symbols
-        self.start = start
-        self.end = end
+        self.data_cfg = data_cfg
         self._basic_data_info = {
-            DataType.PRICE_DATA: PriceDataInfo(DataStore.STORAGE_PATH, self.api),
+            DataType.PRICE_DATA: PriceDataInfo(DataStore.STORAGE_PATH, self.api, self.data_cfg),
             DataType.PRESS_DATA: PressDataInfo(DataStore.STORAGE_PATH, self.api),
             DataType.STOCK_NEWS_DATA: StockNewsDataInfo(
                 DataStore.STORAGE_PATH, self.api
@@ -67,16 +66,16 @@ class DataStore:
         }
         self._relation_data_info = {
             DataType.INDUSTRY_RELATION_DATA: IndustryRelationDataInfo(
-                DataStore.STORAGE_PATH, self.api, self.symbols
+                DataStore.STORAGE_PATH, self.api, self.data_cfg.symbols
             ),
             DataType.STOCK_PEER_RELATION_DATA: StockPeerRelationDataInfo(
-                DataStore.STORAGE_PATH, self.api, self.symbols
+                DataStore.STORAGE_PATH, self.api, self.data_cfg.symbols
             ),
             DataType.INSTITUTIONAL_HOLDERS_RELATION_DATA: InstitutionalHoldersRelationDataInfo(
-                DataStore.STORAGE_PATH, self.api, self.symbols
+                DataStore.STORAGE_PATH, self.api, self.data_cfg.symbols
             ),
             DataType.MUTUAL_HOLDERS_RELATION_DATA: MutualHoldersRelationDataInfo(
-                DataStore.STORAGE_PATH, self.api, self.symbols
+                DataStore.STORAGE_PATH, self.api, self.data_cfg.symbols
             ),
         }
 
@@ -90,7 +89,7 @@ class DataStore:
         """Writes all necessary data to the filesystem, if it is not yet present"""
 
         # Get price and press data for each symbols
-        for symbol in self.symbols:
+        for symbol in self.data_cfg.symbols:
             self._maybe_build_data_for_symbol(symbol, DataType.PRESS_DATA)
             self._maybe_build_data_for_symbol(symbol, DataType.PRICE_DATA)
             self._maybe_build_data_for_symbol(symbol, DataType.STOCK_NEWS_DATA)
@@ -164,7 +163,7 @@ class DataStore:
     ):
         """Get historical press release data from file or from API"""
         data_info = self._basic_data_info[data_type]
-        assert symbol in self.symbols, f"DataStore does not contain symbol '{symbol}'."
+        assert symbol in self.data_cfg.symbols, f"DataStore does not contain symbol '{symbol}'."
 
         self._maybe_build_data_for_symbol(symbol, DataType.PRESS_DATA)
         data_info = read_csv_to_json_array(data_info.get_path(symbol), data_info.fields)
