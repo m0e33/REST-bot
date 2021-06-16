@@ -3,6 +3,10 @@ from enum import Enum
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding
+from tensorflow.keras.layers.experimental.preprocessing import TextVectorization
 from data.data_store import DataStore
 from data.data_configuration import DataConfiguration
 from data.data_info import PriceDataInfo
@@ -55,6 +59,17 @@ class Preprocessor:
         self._events_test_df = pd.DataFrame()
         self._gt_test_df = pd.DataFrame()
 
+        self._vectorizer = TextVectorization(
+            max_tokens=20000, output_sequence_length=self.MAX_EVENT_LENGTH
+        )
+        self.embedding_model: Sequential
+        self._prepare_word_embedding()
+
+    NOTHING_HAPPENED_TEXT = "Nothing happened"
+    EMBEDDING_DIM = 300
+    MAX_EVENT_LENGTH = 50
+    PATH_TO_GLOVE_FILE = "data/assets/glove.6B.300d.txt"
+
     def build_events_data_with_gt(self):
         """builds event data"""
 
@@ -67,6 +82,11 @@ class Preprocessor:
         events_df["event"] = events_df["event_type"] + " " + events_df["event_text"]
         events_df = events_df.drop(["event_type", "event_text"], axis=1)
         events_df = events_df.astype({"event": object})
+
+        # pylint: disable=unnecessary-lambda
+        events_df["event"] = events_df["event"].apply(
+            lambda event: self._create_embedding(event)
+        )
 
         # build multi-index dataframe per date and symbol to later generate tensors
         # with the right shape easily
@@ -86,17 +106,35 @@ class Preprocessor:
 
         self._set_train_val_test_split(events_df)
 
-    def get_train_ds(self):
-        """windowed tensorflow training dataset"""
-        return self._get_tf_dataset(self._events_train_df, self._gt_train_df)
-
     def get_val_ds(self):
         """windowed tensorflow validation dataset"""
         return self._get_tf_dataset(self._events_val_df, self._gt_val_df)
 
+    def get_train_ds(self):
+        """windowed tensorflow training dataset"""
+        return self._get_tf_dataset(self._events_train_df, self._gt_train_df)
+
     def get_test_ds(self):
-        """windowed tensorflow validation dataset"""
+        """windowed tensorflow test dataset"""
         return self._get_tf_dataset(self._events_test_df, self._gt_test_df)
+
+    def _prepare_word_embedding(self):
+        self._set_vectorizer()
+
+        vocab = self._vectorizer.get_vocabulary()
+        num_tokens = len(vocab) + 2
+
+        embedding_matrix = self._build_embedding_matrix(vocab)
+        embedding = Embedding(
+            num_tokens,
+            self.EMBEDDING_DIM,
+            input_length=self.MAX_EVENT_LENGTH,
+            embeddings_initializer=keras.initializers.Constant(embedding_matrix),
+            trainable=False,
+        )
+        self.embedding_model = Sequential()
+        self.embedding_model.add(embedding)
+        self.embedding_model.compile()
 
     def _get_tf_dataset(self, events_df, gt_df):
         """Return windowed dataset based on events_df and ground truth"""
@@ -123,7 +161,7 @@ class Preprocessor:
         # element in this dimension
         events_t = events_ragged_t.to_tensor()
 
-        # build the output tensor
+        # build the gt tensor
         np_gt_trend_matrix = gt_df.values.reshape(dates_count, symbols_count, 1)
 
         # since the 'timeseries_dataset_from_array' documentation states:
@@ -134,7 +172,7 @@ class Preprocessor:
         # so that target[1] yields the gt for the first window, which otherwise would be at
         # target[{sliding_window_length}]
         np_gt_trend_matrix = np.roll(
-            np_gt_trend_matrix, shift=sliding_window_length, axis=0
+            np_gt_trend_matrix, shift=-(sliding_window_length - 1), axis=0
         )
 
         gt_trend_t = tf.constant(np_gt_trend_matrix)
@@ -166,7 +204,7 @@ class Preprocessor:
         )
 
         symbol_df["event_text"] = symbol_df["event_text"].replace(
-            np.nan, "Nothing happened"
+            np.nan, self.NOTHING_HAPPENED_TEXT
         )
 
         symbol_df["symbol"] = symbol_df["symbol"].replace(np.nan, symbol)
@@ -174,17 +212,24 @@ class Preprocessor:
         return symbol_df
 
     def _build_events_df_for_symbol(self, symbol):
+        symbol_press_df = self._get_symbol_press_df(symbol)
+        symbol_news_df = self._get_symbol_news_df(symbol)
+
+        return pd.concat([symbol_press_df, symbol_news_df], axis=0)
+
+    def _get_symbol_press_df(self, symbol):
         symbol_press_df = pd.DataFrame.from_dict(
             self.data_store.get_press_release_data(symbol)
         )
-        symbol_press_df = _preprocess_event_df(symbol_press_df, EventType.PRESS_EVENT)
 
+        return _preprocess_event_df(symbol_press_df, EventType.PRESS_EVENT)
+
+    def _get_symbol_news_df(self, symbol):
         symbol_news_df = pd.DataFrame.from_dict(
             self.data_store.get_stock_news_data(symbol)
         )
-        symbol_news_df = _preprocess_event_df(symbol_news_df, EventType.NEWS_EVENT)
 
-        return pd.concat([symbol_press_df, symbol_news_df], axis=0)
+        return _preprocess_event_df(symbol_news_df, EventType.NEWS_EVENT)
 
     def _build_price_gt_df_for_symbol(self, symbol):
         symbol_price_df = pd.DataFrame.from_dict(
@@ -210,12 +255,12 @@ class Preprocessor:
         ).ffill()
 
         indicator_next_day = (
-            symbol_price_df[self.data_cfg.gt_metric.value].shift(1).replace(np.nan, 0)
+            symbol_price_df[self.data_cfg.gt_metric.value].shift(-1).replace(np.nan, 0)
         )
         indicator_current_day = symbol_price_df[self.data_cfg.gt_metric.value]
         symbol_price_df["gt_trend"] = (
-            (indicator_next_day - indicator_current_day) / indicator_current_day * 100
-        )
+            indicator_next_day - indicator_current_day
+        ) / indicator_current_day
 
         # only return date and gt label
         return symbol_price_df.drop(
@@ -253,3 +298,68 @@ class Preprocessor:
 
         self._events_test_df = events_test_df["event"]
         self._gt_test_df = events_test_df["gt_trend"]
+
+    def _get_event_texts_for_symbol(self, symbol):
+        press_texts = self._get_symbol_press_df(symbol)["event_text"]
+        press_texts = EventType.PRESS_EVENT.value + " " + press_texts
+        news_texts = self._get_symbol_news_df(symbol)["event_text"]
+        news_texts = EventType.NEWS_EVENT.value + " " + news_texts
+
+        return pd.concat([press_texts, news_texts], axis=0)
+
+    def _create_embedding(self, event_string):
+        event_vector = self._vectorizer([event_string])
+        event_embedding = self.embedding_model.predict(event_vector)
+
+        # event embedding comes in the shape [1,50,300], we want the shape [50, 3000],
+        # which represents one sentence much better.
+        event_embedding = np.squeeze(event_embedding)
+
+        return event_embedding
+
+    def _set_vectorizer(self):
+        all_event_texts = pd.concat(
+            [
+                self._get_event_texts_for_symbol(symbol)
+                for symbol in self.data_cfg.symbols
+            ]
+        )
+        all_event_texts = all_event_texts.append(
+            pd.Series(EventType.NO_EVENT.value + " " + self.NOTHING_HAPPENED_TEXT)
+        )
+
+        self._vectorizer.adapt(
+            tf.data.Dataset.from_tensor_slices(all_event_texts.values).batch(128)
+        )
+
+    def _build_embedding_matrix(self, vocab):
+        # setup word index
+        word_index = dict(zip(vocab, range(len(vocab))))
+
+        # setup embedding index
+        embeddings_index = {}
+        with open(self.PATH_TO_GLOVE_FILE) as file:
+            for line in file:
+                word, coefs = line.split(maxsplit=1)
+                coefs = np.fromstring(coefs, "f", sep=" ")
+                embeddings_index[word] = coefs
+
+        hits = 0
+        misses = 0
+        # construct embedding matrix
+        missed_words = []
+        num_tokens = len(vocab) + 2
+        embedding_matrix = np.zeros((num_tokens, self.EMBEDDING_DIM))
+        for word, i in word_index.items():
+            embedding_vector = embeddings_index.get(word)
+            if embedding_vector is not None:
+                # Words not found in embedding index will be all-zeros.
+                # This includes the representation for "padding" and "OOV"
+                embedding_matrix[i] = embedding_vector
+                hits += 1
+            else:
+                missed_words.append(word)
+                misses += 1
+        print("Converted %d words (%d misses)" % (hits, misses))
+
+        return embedding_matrix
