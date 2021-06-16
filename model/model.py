@@ -5,7 +5,8 @@ from model.layers import \
     EventInformationEncoder, \
     StockContextEncoder, \
     StockDependentInfluence, \
-    StockTrendForecaster
+    StockTrendForecaster, \
+    TypeSpecificEncoder
 
 
 class RESTNet(keras.Model):
@@ -15,6 +16,7 @@ class RESTNet(keras.Model):
 
         # model architecture
         # trainable
+        self.type_specific_encoder = TypeSpecificEncoder()
         self.event_information_encoder = EventInformationEncoder()
         self.stock_context_encoder = StockContextEncoder()
         self.stock_dependent_influence = StockDependentInfluence()
