@@ -20,8 +20,8 @@ if __name__ == "__main__":
     prepro = Preprocessor(data_store, data_cfg, train_cfg)
     prepro.build_events_data_with_gt()
 
-    ds = prepro.get_test_ds()
+    ds = prepro.get_train_ds()
 
     for example_inputs, example_labels in ds.take(1):
-        print(f'Inputs shape (batch, time, features): {example_inputs.shape}')
-        print(f'Labels shape (batch, time, features): {example_labels.shape}')
+        print(f'Inputs shape (batch, dates, symboles, events, events words, word embeddings): {example_inputs.shape}')
+        print(f'Labels shape (batch, symbols, gt_trend): {example_labels.shape}')
