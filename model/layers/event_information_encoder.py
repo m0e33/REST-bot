@@ -11,5 +11,6 @@ class EventInformationEncoder(keras.layers.Layer):
     def build(self, input_shape):
         """Gets executed, the first time the layer gets called"""
 
+
     def call(self, inputs):
         """The layers forward pass"""
