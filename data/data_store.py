@@ -57,6 +57,7 @@ class DataStore:
     def __init__(self, data_cfg: DataConfiguration) -> None:
         self.api = APIAdapter()
         self.data_cfg = data_cfg
+        self.dirty_storage = False
         self._basic_data_info = {
             DataType.PRICE_DATA: PriceDataInfo(DataStore.STORAGE_PATH, self.api, self.data_cfg),
             DataType.PRESS_DATA: PressDataInfo(DataStore.STORAGE_PATH, self.api),
@@ -147,6 +148,7 @@ class DataStore:
 
         path = data_info.get_path(symbol)
         if not _check_file(path):
+            self.dirty_storage = True
             data = data_info.get_data(symbol)
             write_csv(path, data, data_info.fields)
 
@@ -155,6 +157,7 @@ class DataStore:
 
         path = data_info.get_path()
         if not _check_file(path):
+            self.dirty_storage = True
             data = data_info.get_data()
             write_csv(path, data, data_info.fields)
 

@@ -3,6 +3,8 @@ from enum import Enum
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+import pickle
+import os.path
 from tensorflow import keras
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Embedding
@@ -19,6 +21,13 @@ class EventType(Enum):
     PRESS_EVENT = "PRESS"
     NEWS_EVENT = "NEWS"
     NO_EVENT = "NOEVENT"
+
+
+class DatasetType(Enum):
+
+    TRAIN_DS = "train"
+    VAL_DS = "val"
+    TEST_DS = "test"
 
 
 def _preprocess_event_df(symbol_df, event_type):
@@ -73,6 +82,10 @@ class Preprocessor:
     def build_events_data_with_gt(self):
         """builds event data"""
 
+        # check cached events_df
+        if self._preprocessing_results_have_been_cached():
+            return
+
         # vertically concatenate all symbols and their events
         events_df = pd.concat(
             [self._build_df_for_symbol(symbol) for symbol in self.data_cfg.symbols]
@@ -108,17 +121,27 @@ class Preprocessor:
 
     def get_val_ds(self):
         """windowed tensorflow validation dataset"""
-        return self._get_tf_dataset(self._events_val_df, self._gt_val_df)
+        return self._get_tf_dataset(
+            self._events_val_df, self._gt_val_df, DatasetType.VAL_DS
+        )
 
     def get_train_ds(self):
         """windowed tensorflow training dataset"""
-        return self._get_tf_dataset(self._events_train_df, self._gt_train_df)
+        return self._get_tf_dataset(
+            self._events_train_df, self._gt_train_df, DatasetType.TRAIN_DS
+        )
 
     def get_test_ds(self):
         """windowed tensorflow test dataset"""
-        return self._get_tf_dataset(self._events_test_df, self._gt_test_df)
+        return self._get_tf_dataset(
+            self._events_test_df, self._gt_test_df, DatasetType.TEST_DS
+        )
 
     def _prepare_word_embedding(self):
+        has_been_cached = self._preprocessing_results_have_been_cached()
+        if self._preprocessing_results_have_been_cached():
+            return
+
         self._set_vectorizer()
 
         vocab = self._vectorizer.get_vocabulary()
@@ -136,8 +159,16 @@ class Preprocessor:
         self.embedding_model.add(embedding)
         self.embedding_model.compile()
 
-    def _get_tf_dataset(self, events_df, gt_df):
+    def _get_tf_dataset(self, events_df, gt_df, type: DatasetType):
         """Return windowed dataset based on events_df and ground truth"""
+
+        if self._preprocessing_results_have_been_cached():
+            if type is DatasetType.TRAIN_DS:
+                return tf.data.experimental.load("train_ds")
+            if type is DatasetType.VAL_DS:
+                return tf.data.experimental.load("val_ds")
+            if type is DatasetType.TEST_DS:
+                return tf.data.experimental.load("test_ds")
 
         sliding_window_length = self.data_cfg.stock_context_days
 
@@ -177,13 +208,23 @@ class Preprocessor:
 
         gt_trend_t = tf.constant(np_gt_trend_matrix)
 
-        return tf.keras.preprocessing.timeseries_dataset_from_array(
+        tf_ds = tf.keras.preprocessing.timeseries_dataset_from_array(
             data=events_t,
             targets=gt_trend_t,
             sequence_length=sliding_window_length,
             sequence_stride=1,
             batch_size=32,
         )
+
+        # cache datasets
+        if type is DatasetType.TRAIN_DS:
+            tf.data.experimental.save(tf_ds, "train_ds")
+        if type is DatasetType.VAL_DS:
+            tf.data.experimental.save(tf_ds, "val_ds")
+        if type is DatasetType.TEST_DS:
+            tf.data.experimental.save(tf_ds, "test_ds")
+
+        return tf_ds
 
     def _build_date_dataframe(self):
         dates = pd.date_range(self.data_cfg.start_str, self.data_cfg.end_str, freq="D")
@@ -363,3 +404,13 @@ class Preprocessor:
         print("Converted %d words (%d misses)" % (hits, misses))
 
         return embedding_matrix
+
+    def _preprocessing_results_have_been_cached(self):
+        has_been_cached = bool(
+            not self.data_store.dirty_storage
+            and os.path.isdir("train_ds")
+            and os.path.isdir("test_ds")
+            and os.path.isdir("val_ds")
+        )
+
+        return has_been_cached
