@@ -1,9 +1,9 @@
 """Executable for testing the functionality of various methods and modules"""
 
-from data.data_store import DataStore, DataConfiguration
-from data.preprocesser import Preprocessor, TrainConfiguration
 from tensorflow.keras import Sequential
 from model.layers import TypeSpecificEncoder
+from data.data_store import DataStore, DataConfiguration
+from data.preprocesser import Preprocessor, TrainConfiguration
 
 if __name__ == "__main__":
     data_cfg = DataConfiguration(
@@ -32,7 +32,8 @@ if __name__ == "__main__":
     model.run_eagerly = True
 
     for example_inputs, example_labels in train_ds.take(1):
-        print(f'Inputs shape (batch, dates, symbols, events, events words, word embeddings): {example_inputs.shape}')
+        print(f'Inputs shape (batch, dates, symbols, events, events words, word embeddings): '
+              f'{example_inputs.shape}')
         print(f'Labels shape (batch, symbols, gt_trend): {example_labels.shape}')
 
         one_input = example_inputs[0]
