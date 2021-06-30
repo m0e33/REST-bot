@@ -11,7 +11,7 @@ from tensorflow.keras.layers.experimental.preprocessing import TextVectorization
 from data.data_store import DataStore
 from data.data_configuration import DataConfiguration
 from data.data_info import PriceDataInfo
-from model.train_configuration import TrainConfiguration
+from model.configuration import TrainConfiguration
 
 
 class EventType(Enum):
