@@ -7,15 +7,10 @@ import tensorflow as tf
 
 class EventSequenceEncoder(keras.layers.Layer):
     """Layer docstring"""
-    def __init__(self, num_days):
+    def __init__(self, num_days, lstm_unit_cnt):
         super().__init__()
         self._num_days = num_days
-        self._lstm = None
-
-    def build(self, input_shape):
-        """Gets executed, the first time the layer gets called"""
-        self._lstm = LSTM(input_shape[-1])
-
+        self._lstm = LSTM(lstm_unit_cnt)
 
     def call(self, inputs):
         """The layers forward pass"""

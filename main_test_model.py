@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     train_cfg = TrainConfiguration(val_split=0.2, test_split=0.1)
 
-    hp_cfg = HyperParameterConfiguration(atth_cnt=2, lstm_units_cnt=40)
+    hp_cfg = HyperParameterConfiguration(atth_cnt=2, lstm_units_cnt=40, offset_days=3)
 
     data_store = DataStore(data_cfg)
     data_store.build()
