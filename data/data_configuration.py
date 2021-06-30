@@ -25,7 +25,7 @@ class DataConfiguration:
         end: str,
         feedback_metrics: List[str],
         gt_metric: GroundTruthMetric = GroundTruthMetric.CLOSE,
-        stock_context_days: int = 30
+        stock_context_days: int = 30,
     ) -> None:
         self.start_str = start
         self.start = datetime.strptime(start, self.DATE_FORMAT).date()
