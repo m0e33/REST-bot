@@ -1,10 +1,9 @@
 """Preprocess data for model usage"""
 from enum import Enum
+import os.path
 import pandas as pd
 import numpy as np
 import tensorflow as tf
-import pickle
-import os.path
 from tensorflow import keras
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Embedding
@@ -12,7 +11,7 @@ from tensorflow.keras.layers.experimental.preprocessing import TextVectorization
 from data.data_store import DataStore
 from data.data_configuration import DataConfiguration
 from data.data_info import PriceDataInfo
-from model.train_configuration import TrainConfiguration
+from model.configuration import TrainConfiguration
 
 
 class EventType(Enum):
@@ -24,6 +23,7 @@ class EventType(Enum):
 
 
 class DatasetType(Enum):
+    """Dataset Enum"""
 
     TRAIN_DS = "train"
     VAL_DS = "val"
@@ -57,6 +57,11 @@ class Preprocessor:
     ):
         self.data_store = data_store
         self.data_cfg = data_cfg
+
+        assert (
+            len(set(self.data_cfg.feedback_metrics) - set(PriceDataInfo.fields)) == 0
+        ), "API data price fields do not contain all fields that are configured as feedback metrics"
+
         self.train_cfg = train_cfg
         self.date_df = self._build_date_dataframe()
 
@@ -96,10 +101,15 @@ class Preprocessor:
         events_df = events_df.drop(["event_type", "event_text"], axis=1)
         events_df = events_df.astype({"event": object})
 
+        # We have to incorporate the feedback at the end of the event embedding vector
         # pylint: disable=unnecessary-lambda
-        events_df["event"] = events_df["event"].apply(
-            lambda event: self._create_embedding(event)
+        events_df["event"] = events_df.apply(
+            lambda row: self._create_embedding_with_feedback(row), axis=1
         )
+
+        # We incorporated the feedback at the end of the event embedding matrix
+        # so we don't need the single metrics anymore
+        events_df = events_df.drop(self.data_cfg.feedback_metrics, axis=1)
 
         # build multi-index dataframe per date and symbol to later generate tensors
         # with the right shape easily
@@ -138,7 +148,6 @@ class Preprocessor:
         )
 
     def _prepare_word_embedding(self):
-        has_been_cached = self._preprocessing_results_have_been_cached()
         if self._preprocessing_results_have_been_cached():
             return
 
@@ -155,19 +164,20 @@ class Preprocessor:
             embeddings_initializer=keras.initializers.Constant(embedding_matrix),
             trainable=False,
         )
+
         self.embedding_model = Sequential()
         self.embedding_model.add(embedding)
         self.embedding_model.compile()
 
-    def _get_tf_dataset(self, events_df, gt_df, type: DatasetType):
+    def _get_tf_dataset(self, events_df, gt_df, ds_type: DatasetType):
         """Return windowed dataset based on events_df and ground truth"""
 
         if self._preprocessing_results_have_been_cached():
-            if type is DatasetType.TRAIN_DS:
+            if ds_type is DatasetType.TRAIN_DS:
                 return tf.data.experimental.load("train_ds")
-            if type is DatasetType.VAL_DS:
+            if ds_type is DatasetType.VAL_DS:
                 return tf.data.experimental.load("val_ds")
-            if type is DatasetType.TEST_DS:
+            if ds_type is DatasetType.TEST_DS:
                 return tf.data.experimental.load("test_ds")
 
         sliding_window_length = self.data_cfg.stock_context_days
@@ -188,8 +198,8 @@ class Preprocessor:
         events_ragged_t = tf.squeeze(events_ragged_t, axis=[2])
 
         # timeseries_dataset_from_array only takes eager tensors with defined shape.
-        # The last dimension of the ragged tensor is padded to match the longest
-        # element in this dimension
+        # The third to last dimension of the ragged tensor (events count) is padded
+        # to match the longest element in this dimension
         events_t = events_ragged_t.to_tensor()
 
         # build the gt tensor
@@ -235,10 +245,10 @@ class Preprocessor:
     def _build_df_for_symbol(self, symbol):
 
         symbol_event_df = self._build_events_df_for_symbol(symbol)
-        symbol_price_gt_df = self._build_price_gt_df_for_symbol(symbol)
+        symbol_feedback_and_gt_df = self._build_price_gt_df_for_symbol(symbol)
 
         symbol_df = pd.merge(self.date_df, symbol_event_df, on="date", how="left")
-        symbol_df = pd.merge(symbol_df, symbol_price_gt_df, on="date")
+        symbol_df = pd.merge(symbol_df, symbol_feedback_and_gt_df, on="date")
 
         symbol_df["event_type"] = symbol_df["event_type"].replace(
             np.nan, EventType.NO_EVENT.value
@@ -295,17 +305,31 @@ class Preprocessor:
             self.date_df, symbol_price_df, on="date", how="left"
         ).ffill()
 
-        indicator_next_day = (
-            symbol_price_df[self.data_cfg.gt_metric.value].shift(-1).replace(np.nan, 0)
-        )
-        indicator_current_day = symbol_price_df[self.data_cfg.gt_metric.value]
-        symbol_price_df["gt_trend"] = (
+        symbol_feedback_df = symbol_price_df.drop(["date"], axis=1)
+
+        indicator_next_day = symbol_feedback_df.shift(-1).replace(np.nan, 0)
+        indicator_current_day = symbol_feedback_df
+        symbol_feedback_df = (
             indicator_next_day - indicator_current_day
         ) / indicator_current_day
 
-        # only return date and gt label
-        return symbol_price_df.drop(
-            [field for field in PriceDataInfo.fields if field != "date"], axis=1
+        symbol_feedback_df = symbol_feedback_df.join(symbol_price_df["date"])
+
+        # duplicate symbols gt metric column with dedicated gt label
+        symbol_feedback_df["gt_trend"] = symbol_feedback_df[
+            self.data_cfg.gt_metric.value
+        ]
+
+        # return all fields which are choosen for feedback metrics and gt
+        return symbol_feedback_df.drop(
+            [
+                field
+                for field in PriceDataInfo.fields
+                if field != "date"
+                and field != "gt_trend"
+                and field not in self.data_cfg.feedback_metrics
+            ],
+            axis=1,
         )
 
     def _set_train_val_test_split(self, events_df):
@@ -348,15 +372,23 @@ class Preprocessor:
 
         return pd.concat([press_texts, news_texts], axis=0)
 
-    def _create_embedding(self, event_string):
+    def _create_embedding_with_feedback(self, events_df_row):
+        event_string = events_df_row['event']
         event_vector = self._vectorizer([event_string])
         event_embedding = self.embedding_model.predict(event_vector)
 
-        # event embedding comes in the shape [1,50,300], we want the shape [50, 3000],
+        # event embedding comes in the shape [1,50,300], we want the shape [50, 300],
         # which represents one sentence much better.
         event_embedding = np.squeeze(event_embedding)
 
-        return event_embedding
+        # we have to append the events feedback to the event embedding keep the dataset
+        # shape working therefore each feedback metric has to be expressed with a
+        # (300) vector.
+        feedback_row = events_df_row[self.data_cfg.feedback_metrics].values
+        new_feedback_shape = (len(self.data_cfg.feedback_metrics), self.EMBEDDING_DIM)
+        feedback_row = np.broadcast_to(np.expand_dims(feedback_row, axis=1), new_feedback_shape)
+
+        return np.concatenate((event_embedding, feedback_row), axis=0)
 
     def _set_vectorizer(self):
         all_event_texts = pd.concat(

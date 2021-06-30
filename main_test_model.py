@@ -2,19 +2,24 @@
 
 from tensorflow.keras import Sequential
 from model.layers import TypeSpecificEncoder
-from model.layers import EventSequenceEncoder
 from data.data_store import DataStore, DataConfiguration
-from data.preprocesser import Preprocessor, TrainConfiguration
+from data.preprocesser import Preprocessor
+from model.configuration import TrainConfiguration, HyperParameterConfiguration
+from model.model import RESTNet
+
 
 if __name__ == "__main__":
     data_cfg = DataConfiguration(
-        ["AAPL", "ACN", "CDW", "NFLX"],
-        "2020-12-29",
-        "2021-04-06",
+        symbols=["AAPL", "ACN", "CDW", "NFLX"],
+        start="2020-12-29",
+        end="2021-04-06",
+        feedback_metrics=["open", "close", "high", "low", "vwap"],
         stock_context_days=3,
     )
 
     train_cfg = TrainConfiguration(val_split=0.2, test_split=0.1)
+
+    hp_cfg = HyperParameterConfiguration(atth_cnt=2, lstm_units_cnt=40)
 
     data_store = DataStore(data_cfg)
     data_store.build()
@@ -26,18 +31,16 @@ if __name__ == "__main__":
     val_ds = prepro.get_val_ds()
     test_ds = prepro.get_test_ds()
 
-    model = Sequential()
-    tse = TypeSpecificEncoder(2)
-    esc = EventSequenceEncoder(2)
-    model.add(tse)
-    model.add(esc)
+    model = RESTNet(hp_cfg)
     model.compile()
     model.run_eagerly = True
 
     for example_inputs, example_labels in train_ds.take(1):
-        print(f'Inputs shape (batch, dates, symbols, events, events words, word embeddings): '
-              f'{example_inputs.shape}')
-        print(f'Labels shape (batch, symbols, gt_trend): {example_labels.shape}')
+        print(
+            f"Inputs shape (batch, dates, symbols, events, events words, word embeddings): "
+            f"{example_inputs.shape}"
+        )
+        print(f"Labels shape (batch, symbols, gt_trend): {example_labels.shape}")
 
         one_input = example_inputs[0]
         x = model.predict(one_input)
