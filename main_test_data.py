@@ -23,5 +23,6 @@ if __name__ == "__main__":
     ds = prepro.get_train_ds()
 
     for example_inputs, example_labels in ds.take(1):
-        print(f'Inputs shape (batch, dates, symboles, events, events words, word embeddings): {example_inputs.shape}')
+        print(f'Inputs shape (batch, dates, symboles, events, events words, word embeddings): '
+              f'{example_inputs.shape}')
         print(f'Labels shape (batch, symbols, gt_trend): {example_labels.shape}')

@@ -6,7 +6,8 @@ from model.layers import \
     StockContextEncoder, \
     StockDependentInfluence, \
     StockTrendForecaster, \
-    TypeSpecificEncoder
+    TypeSpecificEncoder, \
+    EventSequenceEncoder
 
 
 class RESTNet(keras.Model):
