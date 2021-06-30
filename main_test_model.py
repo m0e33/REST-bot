@@ -17,9 +17,9 @@ if __name__ == "__main__":
         stock_context_days=3,
     )
 
-    train_cfg = TrainConfiguration(val_split=0.2, test_split=0.1)
+    train_cfg = TrainConfiguration()
 
-    hp_cfg = HyperParameterConfiguration(atth_cnt=2, lstm_units_cnt=40, offset_days=3)
+    hp_cfg = HyperParameterConfiguration()
 
     data_store = DataStore(data_cfg)
     data_store.build()

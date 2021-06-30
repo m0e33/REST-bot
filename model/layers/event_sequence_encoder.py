@@ -7,10 +7,11 @@ import tensorflow as tf
 
 class EventSequenceEncoder(keras.layers.Layer):
     """Layer docstring"""
-    def __init__(self, num_days, lstm_unit_cnt):
+    def __init__(self, num_days, lstm_unit_cnt, from_back=True):
         super().__init__()
         self._num_days = num_days
         self._lstm = LSTM(lstm_unit_cnt)
+        self._from_back = from_back
 
     def call(self, inputs):
         """The layers forward pass"""
@@ -28,12 +29,20 @@ class EventSequenceEncoder(keras.layers.Layer):
         # each event is a timestep so we need to flatten dimensions 1 and 2
         # -> (symbols, num_days * events, attention_vals)
 
-        data_last_days = tf.slice(inputs,
-                                  begin=[inputs.shape[0]-self._num_days, 0, 0, 0],
-                                  size=[
-                                      self._num_days, inputs.shape[1],
-                                      inputs.shape[2], inputs.shape[3]
-                                  ])
+        if self._from_back:
+            data_last_days = tf.slice(inputs,
+                                      begin=[inputs.shape[0]-self._num_days, 0, 0, 0],
+                                      size=[
+                                          self._num_days, inputs.shape[1],
+                                          inputs.shape[2], inputs.shape[3]
+                                      ])
+        else:
+            data_last_days = tf.slice(inputs,
+                                      begin=[0, 0, 0, 0],
+                                      size=[
+                                          self._num_days, inputs.shape[1],
+                                          inputs.shape[2], inputs.shape[3]
+                                      ])
         transposed_days = tf.transpose(data_last_days, perm=[1, 0, 2, 3])
         flattend_days = tf.reshape(transposed_days,
                                    shape=[

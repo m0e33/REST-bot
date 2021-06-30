@@ -1,33 +1,21 @@
 """ Single source of truth for all sorts of parameters"""
+from dataclasses import dataclass
 
 
+@dataclass
 class HyperParameterConfiguration:
     """ Class for storing hyper parameters"""
 
-    def __init__(self, atth_cnt=2, lstm_units_cnt=40, offset_days=3):
-        self.attn_cnt = atth_cnt
-        self.lstm_units_cnt = lstm_units_cnt
-        self.offset_days = offset_days
-
-    def public_method(self):
-        """public method 1"""
-
-    def public_method_2(self):
-        """public method 2"""
+    attn_cnt = 2
+    lstm_units_cnt = 40
+    sliding_window_size = 3
+    offset_days = 2
 
 
+@dataclass
 class TrainConfiguration:
     """ Class for storing training parameters"""
-    def __init__(
-        self,
-        val_split: float = 0.2,
-        test_split: float = 0.1
-    ):
-        self.val_split = val_split
-        self.test_split = test_split
 
-    def public_method(self):
-        """public method 1"""
+    val_split = 0.2
+    test_split = 0.1
 
-    def public_method_2(self):
-        """public method 2"""
