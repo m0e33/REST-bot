@@ -16,14 +16,14 @@ class GroundTruthMetric(Enum):
 
 
 class DataConfiguration:
-    """Single source data configuration class"""
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
         symbols: List[str],
         start: str,
         end: str,
+        feedback_metrics: List[str],
         gt_metric: GroundTruthMetric = GroundTruthMetric.CLOSE,
         stock_context_days: int = 30
     ) -> None:
@@ -33,8 +33,12 @@ class DataConfiguration:
         self.end_str = end
         self.end = datetime.strptime(end, self.DATE_FORMAT).date()
         self.gt_metric = gt_metric
+        self.feedback_metrics = feedback_metrics
         self.symbols = symbols
         self.stock_context_days = stock_context_days
+
+    """Single source data configuration class"""
+    # pylint: disable=too-many-arguments
 
     DATE_FORMAT = "%Y-%m-%d"
 
