@@ -8,6 +8,7 @@ from model.layers import (
     StockDependentInfluence,
     StockTrendForecaster,
     TypeSpecificEncoder,
+    EventSequenceEncoder
 )
 from model.configuration import HyperParameterConfiguration
 
@@ -23,6 +24,7 @@ class RESTNet(keras.Model):
 
         # model architecture
         self.type_specific_encoder = TypeSpecificEncoder(self.hp_cfg.attn_cnt)
+        self.event_sequence_encoder = EventSequenceEncoder(self.hp_cfg.offset_days, self.hp_cfg.lstm_units_cnt)
         self.stock_context_encoder = StockContextEncoder()
         self.stock_dependent_influence = StockDependentInfluence()
         self.stock_trend_forecaster = StockTrendForecaster()
@@ -31,7 +33,8 @@ class RESTNet(keras.Model):
         # since we have attached the events feedback to the event embedding
         # we have to extract it here again for the tse to work properly
         events, feedback = self._extract_feedback_and_events(inputs)
-        return self.type_specific_encoder(events)
+        event_embeddings = self.type_specific_encoder(events)
+        return self.event_sequence_encoder(event_embeddings)
 
     def _extract_feedback_and_events(self, input):
 
@@ -56,8 +59,10 @@ class RESTNet(keras.Model):
                 all_symbols,
                 all_events,
                 feedback_metrics_embeddings,
-                all_values,
+                1,
             ],
         )
+
+        feedback = tf.squeeze(feedback)
 
         return events, feedback

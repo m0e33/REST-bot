@@ -4,9 +4,10 @@
 class HyperParameterConfiguration:
     """ Class for storing hyper parameters"""
 
-    def __init__(self, atth_cnt=2, lstm_units_cnt=40):
+    def __init__(self, atth_cnt=2, lstm_units_cnt=40, offset_days=3):
         self.attn_cnt = atth_cnt
         self.lstm_units_cnt = lstm_units_cnt
+        self.offset_days = offset_days
 
     def public_method(self):
         """public method 1"""
