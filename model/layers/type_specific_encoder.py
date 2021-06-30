@@ -12,14 +12,15 @@ class TypeSpecificEncoder(keras.layers.Layer):
         super().__init__()
         self._num_heads = num_heads
         self.leaky_relu = LeakyReLU()
+        self._event_embedding_shape = None
+        self._word_embedding_size = None
+        self.w = None
+        self.b = None
 
     def build(self, input_shape):
         """Gets executed, the first time the layer gets called"""
-        # pylint: disable=attribute-defined-outside-init
         self._word_embedding_size = input_shape[4]
-        # pylint: disable=attribute-defined-outside-init
         self._event_embedding_shape = self._word_embedding_size * self._num_heads
-        # pylint: disable=attribute-defined-outside-init
         # pylint: disable=invalid-name
         self.w = self.add_weight(
             shape=(self._num_heads, self._word_embedding_size),
@@ -27,7 +28,6 @@ class TypeSpecificEncoder(keras.layers.Layer):
             trainable=True,
         )
 
-        # pylint: disable=attribute-defined-outside-init
         # pylint: disable=invalid-name
         self.b = self.add_weight(
             shape=(self._num_heads, self._word_embedding_size),
