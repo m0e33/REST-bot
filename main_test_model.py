@@ -2,6 +2,7 @@
 
 from tensorflow.keras import Sequential
 from model.layers import TypeSpecificEncoder
+from model.layers import EventSequenceEncoder
 from data.data_store import DataStore, DataConfiguration
 from data.preprocesser import Preprocessor, TrainConfiguration
 
@@ -27,7 +28,9 @@ if __name__ == "__main__":
 
     model = Sequential()
     tse = TypeSpecificEncoder(2)
+    esc = EventSequenceEncoder(2)
     model.add(tse)
+    model.add(esc)
     model.compile()
     model.run_eagerly = True
 
