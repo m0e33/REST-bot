@@ -5,7 +5,7 @@ from tensorflow.keras.layers import LSTM  # pylint: disable=no-name-in-module
 import tensorflow as tf
 
 
-class EventSequenceEncoder(keras.layers.Layer):
+class SequenceEncoder(keras.layers.Layer):
     """Layer docstring"""
     def __init__(self, num_days, lstm_unit_cnt, from_back=True):
         super().__init__()
@@ -28,21 +28,16 @@ class EventSequenceEncoder(keras.layers.Layer):
 
         # each event is a timestep so we need to flatten dimensions 1 and 2
         # -> (symbols, num_days * events, attention_vals)
-
+        begin_days = 0
         if self._from_back:
-            data_last_days = tf.slice(inputs,
-                                      begin=[inputs.shape[0]-self._num_days, 0, 0, 0],
-                                      size=[
-                                          self._num_days, inputs.shape[1],
-                                          inputs.shape[2], inputs.shape[3]
-                                      ])
-        else:
-            data_last_days = tf.slice(inputs,
-                                      begin=[0, 0, 0, 0],
-                                      size=[
-                                          self._num_days, inputs.shape[1],
-                                          inputs.shape[2], inputs.shape[3]
-                                      ])
+            begin_days = inputs.shape[0]-self._num_days
+
+        data_last_days = tf.slice(inputs,
+                                  begin=[begin_days, 0, 0, 0],
+                                  size=[
+                                      self._num_days, inputs.shape[1],
+                                      inputs.shape[2], inputs.shape[3]
+                                  ])
         transposed_days = tf.transpose(data_last_days, perm=[1, 0, 2, 3])
         flattend_days = tf.reshape(transposed_days,
                                    shape=[
