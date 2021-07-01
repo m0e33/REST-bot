@@ -33,7 +33,6 @@ if __name__ == "__main__":
 
     model = RESTNet(hp_cfg)
     model.compile()
-    model.run_eagerly = True
 
     for example_inputs, example_labels in train_ds.take(1):
         print(

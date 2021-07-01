@@ -13,8 +13,8 @@ class StockDependentInfluence(keras.layers.Layer):
 
     def build(self, inputs_shape):
         """Gets executed, the first time the layer gets called"""
-        units = inputs_shape[0][1]  + inputs_shape[1][1]
-
+        # will be 40 (lstm hidden units count)
+        units = inputs_shape[0][1]
         self.dense = Dense(units, activation=LeakyReLU())
 
     def call(self, inputs):

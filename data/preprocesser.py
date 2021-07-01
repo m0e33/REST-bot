@@ -227,11 +227,11 @@ class Preprocessor:
         )
 
         # cache datasets
-        if type is DatasetType.TRAIN_DS:
+        if ds_type is DatasetType.TRAIN_DS:
             tf.data.experimental.save(tf_ds, "train_ds")
-        if type is DatasetType.VAL_DS:
+        if ds_type is DatasetType.VAL_DS:
             tf.data.experimental.save(tf_ds, "val_ds")
-        if type is DatasetType.TEST_DS:
+        if ds_type is DatasetType.TEST_DS:
             tf.data.experimental.save(tf_ds, "test_ds")
 
         return tf_ds

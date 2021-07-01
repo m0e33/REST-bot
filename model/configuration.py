@@ -8,7 +8,7 @@ class HyperParameterConfiguration:
 
     attn_cnt = 2
     lstm_units_cnt = 40
-    sliding_window_size = 3
+    sliding_window_size = 4
     offset_days = 2
 
 
