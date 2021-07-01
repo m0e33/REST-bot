@@ -28,8 +28,7 @@ class RESTNet(keras.Model):
         self.event_sequence_encoder = SequenceEncoder(self.hp_cfg.offset_days, self.hp_cfg.lstm_units_cnt)
 
         # stock context encoder
-        self.stock_context_events_sequence_encoder = SequenceEncoder(self.hp_cfg.sliding_window_size, self.hp_cfg.lstm_units_cnt, from_back=False)
-        self.stock_context_feedback_sequence_encoder = SequenceEncoder(self.hp_cfg.sliding_window_size, 5, from_back=False)
+        self.stock_context_encoder = StockContextEncoder(self.hp_cfg)
         self.stock_dependent_influence = StockDependentInfluence()
         self.stock_trend_forecaster = StockTrendForecaster()
 
@@ -39,8 +38,11 @@ class RESTNet(keras.Model):
         events, feedback = self._extract_feedback_and_events(inputs)
         event_embeddings = self.type_specific_encoder(events)
         last_events_sequence_encoding = self.event_sequence_encoder(event_embeddings)
-        stock_context_events_sequence_encokdings = self.stock_context_events_sequence_encoder(event_embeddings)
-        stock_context_feedback_sequence_encodings = self.stock_context_feedback_sequence_encoder(feedback)
+        stock_context = self.stock_context_encoder(event_embeddings, feedback)
+
+        # we have to input a list here for build shape extraction to work
+        effect_of_event_information = self.stock_dependent_influence([last_events_sequence_encoding, stock_context])
+
         return last_events_sequence_encoding
 
     def _extract_feedback_and_events(self, input):
