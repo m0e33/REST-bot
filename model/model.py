@@ -3,12 +3,11 @@
 import tensorflow as tf
 from tensorflow import keras
 from model.layers import (
-    EventInformationEncoder,
     StockContextEncoder,
     StockDependentInfluence,
     StockTrendForecaster,
     TypeSpecificEncoder,
-    EventSequenceEncoder
+    SequenceEncoder
 )
 from model.configuration import HyperParameterConfiguration
 
@@ -24,10 +23,13 @@ class RESTNet(keras.Model):
 
         # model architecture
         self.type_specific_encoder = TypeSpecificEncoder(self.hp_cfg.attn_cnt)
-        self.event_sequence_encoder = EventSequenceEncoder(self.hp_cfg.offset_days, self.hp_cfg.lstm_units_cnt)
-        self.stock_context_sequence_encoder = EventSequenceEncoder(self.hp_cfg.sliding_window_size, self.hp_cfg.lstm_units_cnt, from_back=False)
-        self.stock_context_feedback_sequence_encoder = EventSequenceEncoder(self.hp_cfg.sliding_window_size, 5, from_back=False)
-        self.stock_context_encoder = StockContextEncoder()
+
+        # event information encoder
+        self.event_sequence_encoder = SequenceEncoder(self.hp_cfg.offset_days, self.hp_cfg.lstm_units_cnt)
+
+        # stock context encoder
+        self.stock_context_events_sequence_encoder = SequenceEncoder(self.hp_cfg.sliding_window_size, self.hp_cfg.lstm_units_cnt, from_back=False)
+        self.stock_context_feedback_sequence_encoder = SequenceEncoder(self.hp_cfg.sliding_window_size, 5, from_back=False)
         self.stock_dependent_influence = StockDependentInfluence()
         self.stock_trend_forecaster = StockTrendForecaster()
 
@@ -37,7 +39,7 @@ class RESTNet(keras.Model):
         events, feedback = self._extract_feedback_and_events(inputs)
         event_embeddings = self.type_specific_encoder(events)
         last_events_sequence_encoding = self.event_sequence_encoder(event_embeddings)
-        stock_context_sequence_encodings = self.stock_context_sequence_encoder(event_embeddings)
+        stock_context_events_sequence_encokdings = self.stock_context_events_sequence_encoder(event_embeddings)
         stock_context_feedback_sequence_encodings = self.stock_context_feedback_sequence_encoder(feedback)
         return last_events_sequence_encoding
 
