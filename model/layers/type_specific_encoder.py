@@ -66,6 +66,7 @@ class TypeSpecificEncoder(keras.layers.Layer):
                 attention_parameters[1],
             ),
             (self.w, self.b),
+            parallel_iterations=10,
         )
 
         # concatenate all weighted sum vectors of each head for a final event embedding
