@@ -11,7 +11,7 @@ from model.model import RESTNet
 if __name__ == "__main__":
     data_cfg = DataConfiguration(
         symbols=["AAPL", "ACN", "CDW", "NFLX"],
-        start="2020-12-29",
+        start="2019-12-29",
         end="2021-04-06",
         feedback_metrics=["open", "close", "high", "low", "vwap"],
         stock_context_days=3,
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     hp_cfg = HyperParameterConfiguration()
 
     data_store = DataStore(data_cfg)
-    data_store.build()
+    data_store.rebuild()
 
     prepro = Preprocessor(data_store, data_cfg, train_cfg)
     prepro.build_events_data_with_gt()
