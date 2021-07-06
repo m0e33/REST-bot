@@ -190,19 +190,40 @@ class Preprocessor:
             f"does exceed date count ({dates_count}) in dataset."
         )
 
-        # build the input tensor
-        # we have to use ragged tensor here, since we don't know how many events
-        # per date and symbol there are
+        # build the input np matrix
+
         np_stock_matrix = events_df.values.reshape(dates_count, symbols_count, 1)
-        events_ragged_t = tf.ragged.constant(np_stock_matrix)
-        events_ragged_t = tf.squeeze(events_ragged_t, axis=[2])
 
-        # timeseries_dataset_from_array only takes eager tensors with defined shape.
-        # The third to last dimension of the ragged tensor (events count) is padded
+        events_counts = []
+
+        def add_to_events_counts(list_input):
+            events_counts.append(len(list_input[0]))
+
+        np.apply_along_axis(
+            add_to_events_counts, axis=2, arr=np_stock_matrix
+        )
+
+        max_event_count = max(events_counts)
+
+        # timeseries_dataset_from_array only takes np arrays with defined shape.
+        # The third to last dimension of the np stock array (events count) is padded
         # to match the longest element in this dimension
-        events_t = events_ragged_t.to_tensor()
 
-        # build the gt tensor
+        def array_cast(list_input):
+            unfold_event_list = np.asarray(list_input[0])
+            return np.pad(
+                unfold_event_list,
+                (
+                    (0, max_event_count - unfold_event_list.shape[0]),
+                    (0, 0),
+                    (0, 0),
+                ),
+            )
+
+        np_stock_matrix = np.apply_along_axis(array_cast, axis=2, arr=np_stock_matrix)
+
+
+        # build the gt np matrix
         np_gt_trend_matrix = gt_df.values.reshape(dates_count, symbols_count, 1)
 
         # since the 'timeseries_dataset_from_array' documentation states:
@@ -216,11 +237,9 @@ class Preprocessor:
             np_gt_trend_matrix, shift=-(sliding_window_length - 1), axis=0
         )
 
-        gt_trend_t = tf.constant(np_gt_trend_matrix)
-
         tf_ds = tf.keras.preprocessing.timeseries_dataset_from_array(
-            data=events_t,
-            targets=gt_trend_t,
+            data=np_stock_matrix.astype('float16'),
+            targets=np_gt_trend_matrix.astype('float16'),
             sequence_length=sliding_window_length,
             sequence_stride=1,
             batch_size=32,
@@ -373,7 +392,7 @@ class Preprocessor:
         return pd.concat([press_texts, news_texts], axis=0)
 
     def _create_embedding_with_feedback(self, events_df_row):
-        event_string = events_df_row['event']
+        event_string = events_df_row["event"]
         event_vector = self._vectorizer([event_string])
         event_embedding = self.embedding_model.predict(event_vector)
 
@@ -386,7 +405,9 @@ class Preprocessor:
         # (300) vector.
         feedback_row = events_df_row[self.data_cfg.feedback_metrics].values
         new_feedback_shape = (len(self.data_cfg.feedback_metrics), self.EMBEDDING_DIM)
-        feedback_row = np.broadcast_to(np.expand_dims(feedback_row, axis=1), new_feedback_shape)
+        feedback_row = np.broadcast_to(
+            np.expand_dims(feedback_row, axis=1), new_feedback_shape
+        )
 
         return np.concatenate((event_embedding, feedback_row), axis=0)
 
