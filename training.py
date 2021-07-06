@@ -18,7 +18,6 @@ if __name__ == "__main__":
     )
 
     train_cfg = TrainConfiguration()
-
     hp_cfg = HyperParameterConfiguration()
 
     data_store = DataStore(data_cfg)
