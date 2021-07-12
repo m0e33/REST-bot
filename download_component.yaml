@@ -1,0 +1,16 @@
+name: Download Data
+description: Downloads data
+inputs:
+  - { name: Cloud Path, type: String, default: 'ames_dataset', description: 'Folder in the glcoud storage' }
+outputs:
+  - { name: Output, type: Directory }
+implementation:
+  container:
+    image: us.gcr.io/gcp-bakdata-kubeflow-cluster/ames-xgboost-job-3.7.10-trained_ames_model.dat-v0.1:latest
+    command: [
+        python,
+        pipeline.py,
+        download_data_component,
+        --cloud_path, { inputValue: Cloud Path },
+        --data_path, { outputPath: Output }
+    ]

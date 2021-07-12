@@ -1,0 +1,22 @@
+name: train xgboost
+description: Trains xgboost model
+inputs:
+  - { name: Data Path, type: Directory, default: 'ames_dataset', description: 'Path of the trainings data' }
+  - { name: Learning Rate, type: Float, default: '0.1', description: 'Learning rate for training' }
+  - { name: N Estimators, type: Integer, default: '100', description: 'Number of Estimators' }
+outputs:
+  - { name: MLPipeline Metrics, type: Metrics }
+implementation:
+  container:
+    image: us.gcr.io/gcp-bakdata-kubeflow-cluster/ames-xgboost-job-3.7.10-trained_ames_model.dat-v0.1:latest
+    command: [
+        python,
+        pipeline.py,
+        train_model,
+        --pipeline_run, 'True',
+        --data_path, { inputPath: Data Path },
+        --learning_rate, { inputValue: Learning Rate },
+        --n_estimators, { inputValue: N Estimators }
+    ]
+    fileOutputs:
+      MLPipeline Metrics: /mlpipeline-metrics.json

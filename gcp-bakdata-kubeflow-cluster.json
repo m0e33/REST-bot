@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "gcp-bakdata-kubeflow-cluster",
+  "private_key_id": "13e5c048801938d52bfea7cb565485b0f8a279d6",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDBR0hcSpaNEtPl\naO/9apCUWcce/3GuDLOwrqAtfCAR631anDhBC8yRFZfpuq7dFsU6ZGqUTqKEgI5P\nc8cC8u58RcdFjXwoQX/F17au8sPGNu7SZiDcexO9vLQpEZbZWFJKpmsrUW7i/osv\nwOuCD8eg6PwezocSUlPaxAezaN1e9NeH8jSpxzYo4UhQDJkD1hBoHqoJQSUgd1U6\nzSBcX/3E8+6VKUFbSjkF0CkotBikl6ptBtZd2UIYBLz8rvIEs9UKW1tR/1CgnZDc\nA0nUmNBuheJhweQAuZYe84nFAAIdmT27CLS9s6dupe8MsXOeG3qpW1UchVOSGtxL\nHpwL0TnHAgMBAAECggEAAi+TQIM+9ziIOxJQgqB618G5WKhmNAXxsVt87axoSOm2\n/8z8BPE+oV/GFbHoNJjWRQFgi6oDS5H5kZMNJ/RSriUdwuDJGumP5gP1WLcMuw3Z\nosSxJq8SW3689ikADwj3u990EDylaZJf2+U4xKBCeMSTL7jUVrQAH7fW5Bpr+VG/\n7poOyAAHIWvRlyNMU9iwbjH++H9G3sw+oRUh7O7OPgUEiHDA+VhbaRSYWct5mqtE\nXCnFQWA/lo9riET+i8CMRHqGWgslZr/u6spHYehv7ZS1978/SkKcqetQVAENZDfe\njMbnd5/VYL1J2TSRIJjBcowkR1cjw5r9hj0WHMpAgQKBgQDhUmWHL0ipmQMMNJ2Y\naqGivIKy41Yc8eRxEQbX9/ubCplxM+qEPVpHGC3LI0NoQI7S/6jlAj7+ODjYsXJp\nfDSdr8ZCyd/PRTE3iRx5j4oaiDix/c0RSur81QdYBEPZ2Qgd1/MFgnB1gBMbEJMh\nQA3D87nhpBSUJyZmoHMl+JT8TwKBgQDbmALvaLODHy9G84xc5DDWkZPXkSZAmRlj\nN5doWWl3Kq4g9cSrpn+c6T5mDd8EaidoxZ8ebqtS6g3PbvnQR8tHLAaL0eLoPXYY\nLhRjD1GxYgRyJGPYXbQmwjWy4edmABvKP8yJ3jTKCKJZyaDZHgNBWk2pNMfvO0X9\nSbUC1ig1CQKBgDXUgo72W+ywsoqy80ebifwf/zWPnF4T6BifEbx88S5MLPZfidKH\n+c5sV1xlk1APxE9iZs43aCdB9UrHsebDlqppePsx0XdqN2TmK9ha04qdKrZTRS+x\nb0xx9GwxsKgV8pt2oQea7xUTQP1BS3UxIVjEHI9srMHsTH9OK9RRe/5/AoGBAKye\nAOirWDlhgSt39cVrh0yUITBaJESxVLiekYFwj6wiO8EjENeRyUzSOL/GdaIlxBbj\nCiLFAh3qaLK/3NYyKYQoAnlUotbGwZdeWZ5JA4G5uB71phsGBcBV+BpG5DxVJ4ND\nxYg2yS5rvRtxmOQzaIGt99Bj8iqHYIwrrYOuTurpAoGAIR9tO4eqptTMYfBrir1I\n6kNBODq8XR7sumNzA65SapJhCGW8PgWNAUbwd2gzjg0CaZt9LYCoDgdBypo085rZ\nExGdFOy35rE1vxM8N/oMDWcRDPggar0+GtFT9wNS/cTX/1kht7yvgSpQfBXNr4mp\n3+eg1YIsTB9zJ+IYcquyzSk=\n-----END PRIVATE KEY-----\n",
+  "client_email": "hpi-student@gcp-bakdata-kubeflow-cluster.iam.gserviceaccount.com",
+  "client_id": "115406814261832233142",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/hpi-student%40gcp-bakdata-kubeflow-cluster.iam.gserviceaccount.com"
+}
