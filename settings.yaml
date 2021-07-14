@@ -6,7 +6,7 @@ docker:
 gcloud:
   bucket_id: rest-bot
   bucket_prefix: gs://
-  bucket_path: ames-xgboost
+  bucket_path: rest-bot/
 
 k8s:
   namespace: hpi-ml-applications

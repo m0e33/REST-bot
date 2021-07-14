@@ -4,10 +4,10 @@ import fire
 import kfp
 from kfp.compiler import compiler
 
-from xgboost_model import XGBoostModel
+from model.rest_kubeflow_adapter import KubeflowAdapter
 
 if __name__ == '__main__':
-    fire.Fire(XGBoostModel)
+    fire.Fire(KubeflowAdapter)
 
 
 def compile_run_pipeline():
@@ -27,3 +27,5 @@ def compile_run_pipeline():
 
     pipeline_filename = "train_pipeline.zip"
     compiler.Compiler().compile(pipeline, pipeline_filename)
+
+    # in Kubeflow UI zip hochladen und dann starten

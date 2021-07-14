@@ -1,12 +1,13 @@
 from pipeline import compile_run_pipeline
-from xgboost_model import XGBoostModel
+from model.rest_kubeflow_adapter import KubeflowAdapter
 
 if __name__ == '__main__':
-    model = XGBoostModel()
+    model = KubeflowAdapter()
 
     # model.create_bucket()
-    # model.upload_data('ames_dataset', 'ames_dataset')
-    # model.download_data('ames_dataset', 'ames_dataset2')
+    # model.upload_data('storage', 'data_raw')
+
+    # model.download_data('data_raw/storage', 'data')
 
     # # local training
     # model.train()
@@ -20,13 +21,13 @@ if __name__ == '__main__':
     #                          5.000e+00, 2.007e+03]]}, None)
 
     # build the "pre-build" docker image which includes all needed dependencies. When the pre-build image is updated everytime the dependencies change the actual build time of the normal docker image is a lot faster.
-    model.build_prebuild_docker_image()
+    # model.build_prebuild_docker_image()
 
     # build docker image locally - not needed when retraining model with new data - needed when changing code
-    model.build_push_docker_image()
+    # model.build_push_docker_image()
 
     # trains the model in kubeflow (cluster)
-    # model.train_online()
+    model.train_online()
 
     # serves the model for inference in kubeflow (cluster)
     # model.deploy()
