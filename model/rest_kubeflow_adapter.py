@@ -46,13 +46,16 @@ class KubeflowAdapter(KubeflowServe):
         data_store = DataStore(data_cfg)
         data_store.build()
 
+        print("Preprocessor -> build events data with gt")
         prepro = Preprocessor(data_store, data_cfg, train_cfg)
         prepro.build_events_data_with_gt()
 
+        print("Preprocessor -> get datasets")
         train_ds = prepro.get_train_ds()
         val_ds = prepro.get_val_ds()
         test_ds = prepro.get_test_ds()
 
+        print("Preprocessor -> Returning Datasets")
         return train_ds, val_ds, test_ds
 
     def get_metadata(self) -> MetadataConfig:

@@ -284,6 +284,7 @@ class KubeflowServe(ABC):
 
     def upload_data(self, source_folder: str, destination_folder: str):
         """Downloads a blob from the bucket."""
+        # destination_folder einfach als key nehmen
         gs_path = get_gcs_data_folder(destination_folder)
         logging.info(f'Upload {source_folder} into {gs_path}')
         gcs_copy_dir(source_folder, gs_path)

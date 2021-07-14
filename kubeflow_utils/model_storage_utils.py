@@ -23,7 +23,7 @@ def gcs_copy_dir(src_path: str, dst_path: str):
             :-1].decode('utf-8'))
     else:
         logging.info(
-            subprocess.run(['gsutil', '-m', 'cp', '-r', src_path, dst_path], stdout=subprocess.PIPE).stdout[:-1].decode(
+            subprocess.run(['gsutil', '-m', 'cp', '-r', '-o', '"GSUtil:parallel_process_count=1"',  src_path, dst_path], stdout=subprocess.PIPE).stdout[:-1].decode(
                 'utf-8'))
     logging.info(f'Copied {src_path} to {dst_path}')
 
