@@ -1,4 +1,4 @@
-# from pipeline import compile_run_pipeline
+from pipeline import compile_run_pipeline
 from model.rest_kubeflow_adapter import KubeflowAdapter
 
 if __name__ == '__main__':
@@ -10,7 +10,7 @@ if __name__ == '__main__':
     # model.download_data('data_raw/storage', 'data')
 
     # # local training
-    #model.train()
+    # model.train()
 
     # # local prediction
     # model.predict({'data': [[2.000e+00, 2.000e+01, 8.000e+01, 9.600e+03, 6.000e+00, 8.000e+00, 1.976e+03,
