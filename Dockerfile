@@ -5,6 +5,7 @@ FROM $PREBUILD_IMAGE:latest
 ENV PATH $PATH:/root/tools/google-cloud-sdk/bin
 
 RUN pip install -U pip && mkdir -p /app
+RUN pip install --upgrade pip
 WORKDIR /app
 COPY requirements.txt /app/
 RUN pip install -r requirements.txt

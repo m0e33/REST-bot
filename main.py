@@ -10,7 +10,7 @@ if __name__ == '__main__':
     # model.download_data('data_raw/storage', 'data')
 
     # # local training
-    model.train()
+    # model.train()
 
     # # local prediction
     # model.predict({'data': [[2.000e+00, 2.000e+01, 8.000e+01, 9.600e+03, 6.000e+00, 8.000e+00, 1.976e+03,
@@ -27,7 +27,7 @@ if __name__ == '__main__':
     # model.build_push_docker_image()
 
     # trains the model in kubeflow (cluster)
-    # model.train_online()
+    model.train_online()
 
     # serves the model for inference in kubeflow (cluster)
     # model.deploy()
