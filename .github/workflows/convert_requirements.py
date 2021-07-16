@@ -1,6 +1,6 @@
 if __name__ == "__main__":
     new_f = open("requirements_without_versions.txt", "w")
-    with open("requirements.txt", "r") as f_old:
+    with open("requirements3.9.txt", "r") as f_old:
         for line in f_old:
             print(line)
             new_line = line.split("==")[0]

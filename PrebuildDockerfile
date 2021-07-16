@@ -1,5 +1,5 @@
-ARG PY_VERSION="3.7.2"
-FROM python:${PY_VERSION}
+# ARG PY_VERSION="3.7.10"
+FROM python:3.7.1
 
 # Install google cloud sdk
 RUN wget -nv \
@@ -19,6 +19,7 @@ RUN wget -nv \
 ENV PATH $PATH:/root/tools/google-cloud-sdk/bin
 
 RUN pip install -U pip && mkdir -p /app
+RUN pip install --upgrade pip
 WORKDIR /app
 COPY requirements.txt /app/
 RUN pip install -r requirements.txt

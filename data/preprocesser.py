@@ -3,6 +3,7 @@ from enum import Enum
 import os.path
 import pandas as pd
 import numpy as np
+from datetime import datetime
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.models import Sequential
@@ -123,9 +124,10 @@ class Preprocessor:
             .reset_index()
         )
         events_df.set_index(["date", "symbol"], inplace=True)
-        events_df.index = events_df.index.set_levels(
-            events_df.index.levels[0].date, level=0
-        )
+
+        # events_df.index = events_df.index.set_levels(
+        #     events_df.index.levels[0], level=0
+        # )
 
         self._set_train_val_test_split(events_df)
 

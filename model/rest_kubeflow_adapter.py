@@ -4,6 +4,7 @@ from typing import Union, List, Tuple
 import numpy as np
 import tensorflow as tf
 from model.model import RESTNet
+import os
 
 from kubeflow_utils.kubeflow_serve import KubeflowServe
 from kubeflow_utils.metadata_config import MetadataConfig
@@ -15,6 +16,7 @@ from model.configuration import TrainConfiguration, HyperParameterConfiguration
 logging.basicConfig(format="%(message)s")
 logging.getLogger().setLevel(logging.INFO)
 
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 def eval_model(model, test_X, test_y):
     """Evaluate the model performance."""
@@ -101,7 +103,7 @@ class KubeflowAdapter(KubeflowServe):
 
         train_loss_results = []
         train_accuracy_results = []
-        print("Started training")
+        logging.info("Started training")
         for epoch in range(num_epochs):
             epoch_loss_avg = tf.keras.metrics.Mean()
             epoch_accuracy = tf.keras.metrics.SparseCategoricalAccuracy()
@@ -118,13 +120,13 @@ class KubeflowAdapter(KubeflowServe):
                 # training=True is needed only if there are layers with different
                 # behavior during training versus inference (e.g. Dropout).
                 epoch_accuracy.update_state(y, model(x, training=True))
-            print("epoch done")
+            logging.info("epoch done")
             # End epoch
             train_loss_results.append(epoch_loss_avg.result())
             train_accuracy_results.append(epoch_accuracy.result())
 
             if epoch % 50 == 0:
-                print("Epoch {:03d}: Loss: {:.3f}, Accuracy: {:.3%}".format(epoch,
+                logging.info("Epoch {:03d}: Loss: {:.3f}, Accuracy: {:.3%}".format(epoch,
                                                                             epoch_loss_avg.result(),
                                                                             epoch_accuracy.result()))
 

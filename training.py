@@ -6,6 +6,7 @@ from data.preprocesser import Preprocessor
 from model.configuration import TrainConfiguration, HyperParameterConfiguration
 from model.model import RESTNet
 from tqdm import tqdm
+import sys
 
 
 if __name__ == "__main__":
@@ -60,6 +61,9 @@ if __name__ == "__main__":
 
         # Training loop - using batches of 32
         for x, y in tqdm(train_ds):
+            print("---------------sizes-----------------")
+            print(f"x => {sys.getsizeof(x)}")
+            print(f"y => {sys.getsizeof(y)}")
             # Optimize the model
             loss_value, grads = grad(model, x, y)
             optimizer.apply_gradients(zip(grads, model.trainable_variables))
