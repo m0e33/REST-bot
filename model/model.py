@@ -1,5 +1,6 @@
 """Entry point for stock trend prediction"""
 
+import logging
 import tensorflow as tf
 from tensorflow import keras
 from model.layers import (
@@ -33,13 +34,14 @@ class RESTNet(keras.Model):
         self.stock_dependent_influence = StockDependentInfluence()
         self.stock_trend_forecaster = Dense(1)
 
-
     def call(self, inputs):
-        return tf.map_fn(self._call, inputs)
+        logging.info("Starting forward pass of batch")
+        return tf.map_fn(self._call, inputs, parallel_iterations=8)
 
     def _call(self, inputs):
         # since we have attached the events feedback to the event embedding
         # we have to extract it here again for the tse to work properly
+        logging.info("Starting single forward pass")
         events, feedback = self._extract_feedback_and_events(inputs)
         event_embeddings = self.type_specific_encoder(events)
         last_events_sequence_encoding = self.event_sequence_encoder(event_embeddings)
@@ -49,6 +51,8 @@ class RESTNet(keras.Model):
         # we have to input a list here for build shape extraction to work
         effect_of_event_information = self.stock_dependent_influence([last_events_sequence_encoding, stock_context])
         predicted_price_trend = self.stock_trend_forecaster(effect_of_event_information)
+
+        logging.info("Finished single forward pass")
         return predicted_price_trend
 
     def _extract_feedback_and_events(self, input):

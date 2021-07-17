@@ -1,6 +1,6 @@
 import logging
-from os import path
-from typing import Union, List, Tuple
+import time
+from typing import Union, List
 import numpy as np
 import tensorflow as tf
 from model.model import RESTNet
@@ -12,6 +12,7 @@ from kubeflow_utils.training_result import TrainingResult
 from data.data_store import DataStore, DataConfiguration
 from data.preprocesser import Preprocessor
 from model.configuration import TrainConfiguration, HyperParameterConfiguration
+from model.metrics import Metrics
 
 logging.basicConfig(format="%(message)s")
 logging.getLogger().setLevel(logging.INFO)
@@ -37,10 +38,10 @@ class KubeflowAdapter(KubeflowServe):
         """Read input data and split it into train and test."""
         data_cfg = DataConfiguration(
             symbols=["AAPL", "ACN", "CDW", "NFLX"],
-            start="2019-03-29",
-            end="2021-04-30",
+            start="2020-12-29",
+            end="2021-04-06",
             feedback_metrics=["open", "close", "high", "low", "vwap"],
-            stock_context_days=6,
+            stock_context_days=3,
         )
 
         train_cfg = TrainConfiguration()
@@ -82,62 +83,63 @@ class KubeflowAdapter(KubeflowServe):
         hp_cfg = HyperParameterConfiguration()
 
         model = RESTNet(hp_cfg)
-        model.run_eagerly = True
 
-        num_epochs = 201
+        num_epochs = 1
 
-        optimizer = tf.keras.optimizers.Adadelta(learning_rate=0.01)
-        loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+        optimizer = tf.keras.optimizers.SGD(learning_rate=0.05)
+        loss_object = tf.keras.losses.MeanSquaredError()
 
-        def loss(model, x, y, training):
+        def loss(model, x, y, training=False):
             # training=training is needed only if there are layers with different
             # behavior during training versus inference (e.g. Dropout).
-            y_ = model(x, training=training)
+            y_predict= model(x, training=training)
 
-            return loss_object(y_true=y, y_pred=y_)
+            return loss_object(y_true=y, y_pred=y_predict), y_predict
 
         def grad(model, inputs, targets):
             with tf.GradientTape() as tape:
-                loss_value = loss(model, inputs, targets, training=True)
-            return loss_value, tape.gradient(loss_value, model.trainable_variables)
+                loss_value, y_predict = loss(model, inputs, targets)
+            return loss_value, tape.gradient(loss_value, model.trainable_variables), y_predict
 
-        train_loss_results = []
-        train_accuracy_results = []
-        logging.info("Started training")
+        metrics = Metrics()
+
+        for example_input, example_label in train_ds.take(1):
+            loss_value, y_predict = loss(model, example_input, example_label)
+            logging.info("Loss test: {}".format(loss_value.numpy))
+
+        logging.info("Starting training..")
+
         for epoch in range(num_epochs):
+            start_time = time.time()
             logging.info(f"Started Epoch {epoch+1} from {num_epochs}")
 
-            epoch_loss_avg = tf.keras.metrics.Mean()
-            epoch_accuracy = tf.keras.metrics.SparseCategoricalAccuracy()
+            metrics.reset()
 
             # Training loop - using batches of 32
-            for x, y in train_ds:
+            for x_batch_train, y_batch_train in train_ds:
                 # Optimize the model
-                loss_value, grads = grad(model, x, y)
+                loss_value, grads, y_predict = grad(model, x_batch_train, y_batch_train)
                 optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
                 # Track progress
-                epoch_loss_avg.update_state(loss_value)  # Add current batch loss
-                # Compare predicted label to actual label
-                # training=True is needed only if there are layers with different
-                # behavior during training versus inference (e.g. Dropout).
-                epoch_accuracy.update_state(y, model(x, training=True))
-            logging.info("epoch done")
-            # End epoch
-            train_loss_results.append(epoch_loss_avg.result())
-            train_accuracy_results.append(epoch_accuracy.result())
+                metrics.update_train_metrics(loss_value, y_batch_train, y_predict)
 
-            logging.info("Epoch {:03d}: Loss: {:.3f}, Accuracy: {:.3%}".format(epoch,
-                                                                            epoch_loss_avg.result(),
-                                                                            epoch_accuracy.result()))
+            # End epoch
+
+            for x_batch_val, y_batch_val in val_ds:
+                loss_value, val_predict = loss(model, x_batch_val, y_batch_val)
+                # Update val metrics
+                metrics.update_val_metric(loss_value, y_batch_val, val_predict)
+
+            metrics.log_final_state()
+            metrics.print_epoch_state(epoch)
+
+            logging.info("Time taken: %.2fs" % (time.time() - start_time))
 
         return TrainingResult(
-            models=model,
-            evaluation={"mean_absolute_error": 2},
-            hyperparameters={
-                "hyperparam_1": 1,
-                "hyperparam_2": 2,
-            },
+            models=[],
+            evaluation=metrics.get_dictionary(),
+            hyperparameters={}
         )
 
     def predict_model(self, models, data) -> Union[np.ndarray, List, str, bytes]:

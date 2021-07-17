@@ -225,7 +225,7 @@ class Preprocessor:
             targets=gt_trend_t,
             sequence_length=sliding_window_length,
             sequence_stride=1,
-            batch_size=32,
+            batch_size=4,
         )
 
         # cache datasets
