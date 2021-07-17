@@ -40,22 +40,15 @@ class RESTNet(keras.Model):
     def _call(self, inputs):
         # since we have attached the events feedback to the event embedding
         # we have to extract it here again for the tse to work properly
-        print("starting foreward pass")
         events, feedback = self._extract_feedback_and_events(inputs)
-        print("extracted feedback and events")
         event_embeddings = self.type_specific_encoder(events)
-        print("created_embedding")
         last_events_sequence_encoding = self.event_sequence_encoder(event_embeddings)
-        print("event encoder finished")
 
         stock_context = self.stock_context_encoder(event_embeddings, feedback)
-        print("stock context encoder finished")
 
         # we have to input a list here for build shape extraction to work
         effect_of_event_information = self.stock_dependent_influence([last_events_sequence_encoding, stock_context])
-        print("effect of event information finished")
         predicted_price_trend = self.stock_trend_forecaster(effect_of_event_information)
-        print("price predicted")
         return predicted_price_trend
 
     def _extract_feedback_and_events(self, input):
