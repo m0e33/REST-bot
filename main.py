@@ -24,10 +24,10 @@ if __name__ == '__main__':
     # model.build_prebuild_docker_image()
 
     # build docker image locally - not needed when retraining model with new data - needed when changing code
-    # model.build_push_docker_image()
+    model.build_push_docker_image()
 
     # trains the model in kubeflow (cluster)
-    model.train_online()
+    # model.train_online()
 
     # serves the model for inference in kubeflow (cluster)
     # model.deploy()

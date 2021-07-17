@@ -37,8 +37,8 @@ class KubeflowAdapter(KubeflowServe):
         """Read input data and split it into train and test."""
         data_cfg = DataConfiguration(
             symbols=["AAPL", "ACN", "CDW", "NFLX"],
-            start="2020-12-29",
-            end="2021-04-06",
+            start="2019-03-29",
+            end="2021-04-30",
             feedback_metrics=["open", "close", "high", "low", "vwap"],
             stock_context_days=6,
         )
