@@ -59,7 +59,7 @@ if __name__ == "__main__":
         epoch_loss_avg = tf.keras.metrics.Mean()
         epoch_accuracy = tf.keras.metrics.SparseCategoricalAccuracy()
 
-        # Training loop - using batches of 32
+        # Training loop - using batches of 16
         for x, y in tqdm(train_ds):
             print("---------------sizes-----------------")
             print(f"x => {sys.getsizeof(x)}")
@@ -73,7 +73,10 @@ if __name__ == "__main__":
             # Compare predicted label to actual label
             # training=True is needed only if there are layers with different
             # behavior during training versus inference (e.g. Dropout).
-            epoch_accuracy.update_state(y, model(x, training=True))
+            epoch_accuracy.update_state(y, model(x, training=False))
+
+
+
         print("epoch done")
         # End epoch
         train_loss_results.append(epoch_loss_avg.result())
