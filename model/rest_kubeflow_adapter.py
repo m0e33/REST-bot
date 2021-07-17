@@ -105,6 +105,8 @@ class KubeflowAdapter(KubeflowServe):
         train_accuracy_results = []
         logging.info("Started training")
         for epoch in range(num_epochs):
+            logging.info(f"Started Epoch {epoch+1} from {num_epochs}")
+
             epoch_loss_avg = tf.keras.metrics.Mean()
             epoch_accuracy = tf.keras.metrics.SparseCategoricalAccuracy()
 
@@ -125,8 +127,7 @@ class KubeflowAdapter(KubeflowServe):
             train_loss_results.append(epoch_loss_avg.result())
             train_accuracy_results.append(epoch_accuracy.result())
 
-            if epoch % 50 == 0:
-                logging.info("Epoch {:03d}: Loss: {:.3f}, Accuracy: {:.3%}".format(epoch,
+            logging.info("Epoch {:03d}: Loss: {:.3f}, Accuracy: {:.3%}".format(epoch,
                                                                             epoch_loss_avg.result(),
                                                                             epoch_accuracy.result()))
 
