@@ -1,0 +1,106 @@
+symbols:
+  TSLA:
+    q: tesla
+  NFLX:
+    q: netflix
+  MSFT:
+    q: microsoft
+  AMZN:
+    q: amazon
+  GOOG:
+    q: google
+  FB:
+    q: facebook
+  JPM:
+    q: jpmorgan
+  V:
+    q: Visa
+  JNJ:
+    q: johnson & johson
+  NVDA:
+    q: nividia
+  WMT:
+    q: walmart
+  AAPL:
+    q: apple
+  TSM:
+    q: tsmc
+  BABA:
+    q: alibaba
+  LVMUY:
+    q: lvmh
+  UNH:
+    q: united health
+  MA:
+    q: mastercard
+  BAC:
+    q: bank of america
+  HD:
+    q: Home Depot
+  PYPL:
+    q: paypal
+  PG:
+    q: procter & gamble
+  RHHBY:
+    q: roche
+  DIS:
+    q: walt disney
+  ASML:
+    q: asml
+  ADBE:
+    q: Adobe
+  CMCSA:
+    q: comcast
+  XOM:
+    q: exxon mobil
+  NKE:
+    q: nike
+  OR.PA:
+    q: l'oréal
+  TM:
+    q: toyota
+  VZ:
+    q: verizon
+  KO:
+    q: coca cola
+  CRM:
+    q: salesforce
+  INTC:
+    q: intel
+  ORCL:
+    q: oracle
+  CSCO:
+    q: cisco
+  LLY:
+    q: eli lilly
+  PFE:
+    q: pfizer
+  ABT:
+    q: abbot laboratories
+  T:
+    q: at&t
+  NVS:
+    q: novartis
+  PEP:
+    q: pepsico
+  CVX:
+    q: chevron
+  ABBV:
+    q: abbvie
+  TMO:
+    q: thermo fisher scientific
+  DHR:
+    q: danaher
+  MRK:
+    q: merck
+  AVGO:
+    q: Broadcom
+  UPS:
+    q: united parcel service
+  WFC:
+    q: wells fargo
+  COST:
+    q: costco
+
+
+
