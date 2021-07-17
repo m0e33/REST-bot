@@ -7,13 +7,21 @@ from model.configuration import TrainConfiguration, HyperParameterConfiguration
 from model.model import RESTNet
 from tqdm import tqdm
 import sys
+import yaml
 
+def _load_symbols():
+    with open("symbols.yaml", 'r') as stream:
+        symbols = yaml.safe_load(stream)
+    return symbols
 
 if __name__ == "__main__":
+
+    symbols = list(_load_symbols()['symbols'].keys())
+
     data_cfg = DataConfiguration(
-        symbols=["AAPL", "ACN", "CDW", "NFLX"],
-        start="2020-12-29",
-        end="2021-04-06",
+        symbols=symbols,
+        start="2019-05-01",
+        end="2021-05-01",
         feedback_metrics=["open", "close", "high", "low", "vwap"],
         stock_context_days=6,
     )
@@ -23,7 +31,7 @@ if __name__ == "__main__":
     hp_cfg = HyperParameterConfiguration()
 
     data_store = DataStore(data_cfg)
-    data_store.build()
+    data_store.rebuild()
 
     prepro = Preprocessor(data_store, data_cfg, train_cfg)
     prepro.build_events_data_with_gt()

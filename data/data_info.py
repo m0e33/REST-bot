@@ -71,7 +71,7 @@ class StockNewsDataInfo(BaseDataInfo):
         super().__init__(base_path, api)
         self._path = f"{self._base_path}stock_news_limit={self.limit}_"
 
-    limit = 1000
+    limit = 20000
     fields = ["symbol", "publishedDate", "title", "text", "site", "url"]
 
     def get_data(self, symbol: str):
@@ -121,6 +121,7 @@ class IndustryRelationDataInfo(BaseRelationDataInfo):
             industry_dict = {}
             industry_dict["symbol"] = symbol
             for company, industry in symbols_industries.items():
+                inter = set(list(symbols_industries.keys())).intersection(set(self.symbols))
                 industry_dict[company] = (
                     1 if symbols_industries[symbol] == industry else 0
                 )
