@@ -14,9 +14,10 @@ class APIAdapter:
 
     def get_historical_prices(self, symbol: str, start: str, end: str) -> List[Dict]:
         """Get historical prices from for given time span"""
-
+        print(symbol)
         path = "historical-price-full/" + f"{symbol}?from={start}&to={end}&"
-        return self._request(path)
+        x = self._request(path)
+        return x
 
     def get_press_releases(self, symbol: str, limit: int) -> List[Dict]:
         """Get press releases for symbol"""

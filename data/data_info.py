@@ -121,6 +121,7 @@ class IndustryRelationDataInfo(BaseRelationDataInfo):
             industry_dict = {}
             industry_dict["symbol"] = symbol
             for company, industry in symbols_industries.items():
+                inter = set(list(symbols_industries.keys())).intersection(set(self.symbols))
                 industry_dict[company] = (
                     1 if symbols_industries[symbol] == industry else 0
                 )
