@@ -3,7 +3,6 @@ from enum import Enum
 import os.path
 import pandas as pd
 import numpy as np
-from datetime import datetime
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.models import Sequential
@@ -244,7 +243,7 @@ class Preprocessor:
             targets=np_gt_trend_matrix.astype('float16'),
             sequence_length=sliding_window_length,
             sequence_stride=1,
-            batch_size=4,
+            batch_size=self.train_cfg.batch_size,
         )
 
         # cache datasets

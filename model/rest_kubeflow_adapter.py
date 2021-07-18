@@ -14,17 +14,12 @@ from data.preprocesser import Preprocessor
 from model.configuration import TrainConfiguration, HyperParameterConfiguration
 from model.metrics import Metrics
 
+tf.config.run_functions_eagerly(False)
+
 logging.basicConfig(format="%(message)s")
 logging.getLogger().setLevel(logging.INFO)
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
-
-def eval_model(model, test_X, test_y):
-    """Evaluate the model performance."""
-    # predictions = model.predict(test_X)
-    # mean_error = mean_absolute_error(predictions, test_y)
-    # logging.info("mean_absolute_error=%.2f", mean_error)
-    return 0
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 class KubeflowAdapter(KubeflowServe):
@@ -34,17 +29,15 @@ class KubeflowAdapter(KubeflowServe):
     def download_data_component(self, cloud_path: str, data_path: str):
         self.download_data(cloud_path, data_path)
 
-    def read_input(self):
+    def read_input(self, train_cfg: TrainConfiguration):
         """Read input data and split it into train and test."""
         data_cfg = DataConfiguration(
             symbols=["AAPL", "ACN", "CDW", "NFLX"],
-            start="2020-12-29",
+            start="2020-02-03",
             end="2021-04-06",
             feedback_metrics=["open", "close", "high", "low", "vwap"],
             stock_context_days=3,
         )
-
-        train_cfg = TrainConfiguration()
 
         data_store = DataStore(data_cfg)
         data_store.build()
@@ -78,11 +71,12 @@ class KubeflowAdapter(KubeflowServe):
         )
 
     def train_model(self, pipeline_run=False, data_path: str = "") -> TrainingResult:
-        train_ds, val_ds, test_ds = self.read_input()
+        train_cfg = TrainConfiguration()
+        train_ds, val_ds, test_ds = self.read_input(train_cfg)
 
         hp_cfg = HyperParameterConfiguration()
 
-        model = RESTNet(hp_cfg)
+        model = RESTNet(hp_cfg, train_cfg)
 
         num_epochs = 1
 

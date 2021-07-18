@@ -6,22 +6,22 @@ from tensorflow import keras
 from model.layers import (
     StockContextEncoder,
     StockDependentInfluence,
-    StockTrendForecaster,
     TypeSpecificEncoder,
     SequenceEncoder
 )
-from model.configuration import HyperParameterConfiguration
+from model.configuration import HyperParameterConfiguration, TrainConfiguration
 from keras.layers import Dense
 
 
 class RESTNet(keras.Model):
     """Architecture for stock trend prediction"""
 
-    def __init__(self, hp_cfg: HyperParameterConfiguration):
+    def __init__(self, hp_cfg: HyperParameterConfiguration, train_cfg: TrainConfiguration):
         super(RESTNet, self).__init__()
 
         # parameter
         self.hp_cfg = hp_cfg
+        self.train_cfg = train_cfg
 
         # model architecture
         self.type_specific_encoder = TypeSpecificEncoder(self.hp_cfg.attn_cnt)
@@ -34,9 +34,10 @@ class RESTNet(keras.Model):
         self.stock_dependent_influence = StockDependentInfluence()
         self.stock_trend_forecaster = Dense(1)
 
+    @tf.function
     def call(self, inputs):
         logging.info("Starting forward pass of batch")
-        return tf.map_fn(self._call, inputs, parallel_iterations=8)
+        return tf.map_fn(self._call, inputs, parallel_iterations=self.train_cfg.batch_size)
 
     def _call(self, inputs):
         # since we have attached the events feedback to the event embedding

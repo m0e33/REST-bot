@@ -10,7 +10,7 @@ from model.model import RESTNet
 if __name__ == "__main__":
     data_cfg = DataConfiguration(
         symbols=["AAPL", "ACN", "CDW", "NFLX"],
-        start="2019-12-29",
+        start="2020-02-03",
         end="2021-04-06",
         feedback_metrics=["open", "close", "high", "low", "vwap"],
         stock_context_days=3,
@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
 
     model = RESTNet(hp_cfg)
-    model.run_eagerly = True
+    # model.run_eagerly = True
 
     model.compile(
         optimizer=keras.optimizers.Adadelta(learning_rate=0.01),  # Optimizer
