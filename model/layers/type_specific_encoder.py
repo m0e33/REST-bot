@@ -1,6 +1,7 @@
 """Layer"""
 
 from tensorflow import keras
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import LeakyReLU
 
@@ -35,12 +36,13 @@ class TypeSpecificEncoder(keras.layers.Layer):
             trainable=True,
         )
 
+    @tf.function
     def call(self, inputs):
         """The layers forward pass"""
         return self._recursive_map(inputs)
 
     def _recursive_map(self, inputs):
-        if tf.rank(inputs).numpy() <= 2:
+        if len(inputs.shape) <= 2:
             return self._attention_map(inputs)
         output_shape = self._get_recursive_output_shape(inputs)
         return tf.map_fn(

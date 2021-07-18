@@ -69,7 +69,7 @@ class KubeflowServe(ABC):
 
     def train(self, pipeline_run: bool = False, **kwargs):
         self.artifact_store.re_init(pipeline_run)
-        logging.info(kwargs)
+        # logging.info(kwargs)
 
         model_names = [self.get_metadata().model_names] if type(
             self.get_metadata().model_names) is str else self.get_metadata().model_names
@@ -83,7 +83,7 @@ class KubeflowServe(ABC):
             dataset_version=self.get_metadata().dataset_version,
         )
 
-        logging.info("Start Training")
+        logging.info("Calling model training")
         training_result = self.train_model(pipeline_run=pipeline_run, **kwargs)
         logging.info("Finished Training")
         models = training_result.models if isinstance(training_result.models, list) else [training_result.models]

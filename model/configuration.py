@@ -18,4 +18,5 @@ class TrainConfiguration:
 
     val_split = 0.2
     test_split = 0.1
+    batch_size = 16
 
