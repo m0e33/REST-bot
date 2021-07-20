@@ -33,10 +33,10 @@ class KubeflowAdapter(KubeflowServe):
         """Read input data and split it into train and test."""
         data_cfg = DataConfiguration(
             symbols=["AAPL", "ACN", "CDW", "NFLX"],
-            start="2020-02-03",
+            start="2019-04-06",
             end="2021-04-06",
             feedback_metrics=["open", "close", "high", "low", "vwap"],
-            stock_context_days=3,
+            stock_context_days=15,
         )
 
         data_store = DataStore(data_cfg)
@@ -80,8 +80,8 @@ class KubeflowAdapter(KubeflowServe):
 
         num_epochs = 1
 
-        optimizer = tf.keras.optimizers.SGD(learning_rate=0.05)
-        loss_object = tf.keras.losses.MeanSquaredError()
+        optimizer = tf.keras.optimizers.Adam(learning_rate=0.1)
+        loss_object = tf.keras.losses.MeanAbsoluteError()
 
         def loss(model, x, y, training=False):
             # training=training is needed only if there are layers with different
