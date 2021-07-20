@@ -5,6 +5,7 @@ import numpy as np
 import tensorflow as tf
 from model.model import RESTNet
 import os
+import yaml
 
 from kubeflow_utils.kubeflow_serve import KubeflowServe
 from kubeflow_utils.metadata_config import MetadataConfig
@@ -21,6 +22,11 @@ logging.getLogger().setLevel(logging.INFO)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
+def _load_symbols():
+    with open("symbols.yaml", 'r') as stream:
+        symbols = yaml.safe_load(stream)
+    return symbols
+
 
 class KubeflowAdapter(KubeflowServe):
     def __init__(self):
@@ -31,8 +37,11 @@ class KubeflowAdapter(KubeflowServe):
 
     def read_input(self, train_cfg: TrainConfiguration):
         """Read input data and split it into train and test."""
+
+        symbols = list(_load_symbols()['symbols'].keys())[:10]
+
         data_cfg = DataConfiguration(
-            symbols=["AAPL", "ACN", "CDW", "NFLX"],
+            symbols=symbols,
             start="2019-04-06",
             end="2021-04-06",
             feedback_metrics=["open", "close", "high", "low", "vwap"],
@@ -78,9 +87,9 @@ class KubeflowAdapter(KubeflowServe):
 
         model = RESTNet(hp_cfg, train_cfg)
 
-        num_epochs = 1
+        num_epochs = 40
 
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.1)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
         loss_object = tf.keras.losses.MeanAbsoluteError()
 
         def loss(model, x, y, training=False):
@@ -114,7 +123,7 @@ class KubeflowAdapter(KubeflowServe):
                 # Optimize the model
                 loss_value, grads, y_predict = grad(model, x_batch_train, y_batch_train)
                 optimizer.apply_gradients(zip(grads, model.trainable_variables))
-
+                logging.info(loss_value)
                 # Track progress
                 metrics.update_train_metrics(loss_value, y_batch_train, y_predict)
 
