@@ -16,7 +16,7 @@ symbols:
   V:
     q: Visa
   JNJ:
-    q: johnson & johson
+    q: johnson & johnson
   NVDA:
     q: nividia
   WMT:
@@ -55,8 +55,8 @@ symbols:
     q: exxon mobil
   NKE:
     q: nike
-  OR.PA:
-    q: l'oréal
+#  OR.PA:
+#    q: l'oréal
   TM:
     q: toyota
   VZ:

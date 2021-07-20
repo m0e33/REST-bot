@@ -19,12 +19,12 @@ class Metrics:
   def reset(self):
     self.train_epoch_mae = tf.keras.metrics.Mean()
     self.train_epoch_rmse = tf.keras.metrics.RootMeanSquaredError()
-    self.train_epoch_loss_avg = tf.keras.metrics.MeanSquaredError()
+    self.train_epoch_loss_avg = tf.keras.metrics.MeanAbsoluteError()
     self.train_epoch_accuracy = tf.keras.metrics.SparseCategoricalAccuracy()
 
     self.val_epoch_mae = tf.keras.metrics.Mean()
     self.val_epoch_rmse = tf.keras.metrics.RootMeanSquaredError()
-    self.val_epoch_loss_avg = tf.keras.metrics.MeanSquaredError()
+    self.val_epoch_loss_avg = tf.keras.metrics.MeanAbsoluteError()
     self.val_epoch_accuracy = tf.keras.metrics.SparseCategoricalAccuracy()
 
   def update_train_metrics(self, loss_value, y_batch_train, y_predict):
