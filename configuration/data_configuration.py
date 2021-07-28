@@ -4,10 +4,9 @@ from typing import List
 import os
 from datetime import datetime
 from enum import Enum
-from dataclasses import dataclass
 from configuration.configuration import serialize_cfg, deserialize_cfg
 
-DATA_CFG_CACHING_PATH = "./cached_data_cfg"
+DATA_CFG_CACHING_PATH = "./configuration/cached_data_cfg"
 
 
 class GroundTruthMetric(Enum):
@@ -20,7 +19,6 @@ class GroundTruthMetric(Enum):
     VWAP = "vwap"
 
 
-@dataclass
 class DataConfiguration:
 
     # pylint: disable=too-many-instance-attributes
@@ -51,6 +49,18 @@ class DataConfiguration:
 
     def public_method_2(self):
         """public method 2"""
+
+    # For caching to work, we have to define a custom equals method, which checks if values in our config changed.
+    def __eq__(self, other):
+        return bool(
+            self.start_str == other.start_str
+            and self.start == other.start
+            and self.end_str == other.end_str
+            and self.end == other.end
+            and self.gt_metric == other.gt_metric
+            and self.feedback_metrics == other.feedback_metrics
+            and self.symbols == other.symbols
+            and self.stock_news_limit == other.stock_news_limit)
 
 
 def serialize_data_cfg(cfg: DataConfiguration):

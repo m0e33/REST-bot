@@ -1,12 +1,23 @@
-from configuration.configuration import TrainConfiguration, deserialize_train_cfg, serialize_train_cfg, train_cfg_is_cached
+from configuration.data_configuration import DataConfiguration, deserialize_data_cfg, serialize_data_cfg, data_cfg_is_cached
+cfg = DataConfiguration(
+            symbols=['symbols'],
+            start="2020-12-06",
+            end="2021-04-06",
+            feedback_metrics=["open", "close", "high", "low", "vwap"],
+            stock_news_limit=500
+        )
 
-cfg = TrainConfiguration()
+is_cached = data_cfg_is_cached()
 
-is_cached = train_cfg_is_cached()
+serialize_data_cfg(cfg)
 
-serialize_train_cfg(cfg)
+cfg = DataConfiguration(
+            symbols=['symbols'],
+            start="2020-12-06",
+            end="2021-05-06",
+            feedback_metrics=["open", "close", "high", "low", "vwap"],
+            stock_news_limit=500
+        )
 
-cfg = TrainConfiguration(val_split=0.2, test_split=0.4, batch_size=5)
-
-old_cfg = deserialize_train_cfg()
+old_cfg = deserialize_data_cfg()
 print("finish")
