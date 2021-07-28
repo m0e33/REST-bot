@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from data.api_adapter import APIAdapter
 from data.utils import build_holder_relation
-from data.data_configuration import DataConfiguration
+from configuration.data_configuration import DataConfiguration
 
 class BaseDataInfo(ABC):
     """Base class for basic data, e.g price, press, stock news"""

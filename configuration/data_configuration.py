@@ -1,9 +1,13 @@
 """ Module for generating data configurations that set the base for the data pipeline"""
 
 from typing import List
+import os
 from datetime import datetime
 from enum import Enum
 from dataclasses import dataclass
+from configuration.configuration import serialize_cfg, deserialize_cfg
+
+DATA_CFG_CACHING_PATH = "./cached_data_cfg"
 
 
 class GroundTruthMetric(Enum):
@@ -47,3 +51,18 @@ class DataConfiguration:
 
     def public_method_2(self):
         """public method 2"""
+
+
+def serialize_data_cfg(cfg: DataConfiguration):
+    """ Serializes data fetching configuration using pickle """
+    serialize_cfg(DATA_CFG_CACHING_PATH, cfg)
+
+
+def data_cfg_is_cached():
+    """ Checking if data fetching configuration is cached"""
+    return os.path.exists(DATA_CFG_CACHING_PATH)
+
+
+def deserialize_data_cfg():
+    """ Deserialize safed data configuration"""
+    return deserialize_cfg(DATA_CFG_CACHING_PATH)

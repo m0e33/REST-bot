@@ -12,7 +12,7 @@ from kubeflow_utils.metadata_config import MetadataConfig
 from kubeflow_utils.training_result import TrainingResult
 from data.data_store import DataStore, DataConfiguration
 from data.preprocesser import Preprocessor
-from model.configuration import TrainConfiguration, HyperParameterConfiguration
+from configuration.configuration import TrainConfiguration, HyperParameterConfiguration
 from model.metrics import Metrics
 
 # tf.config.run_functions_eagerly(False)
@@ -51,7 +51,7 @@ class KubeflowAdapter(KubeflowServe):
         )
 
         data_store = DataStore(data_cfg)
-        data_store.rebuild()
+        data_store.build()
 
         print("Preprocessor -> build events data with gt")
         prepro = Preprocessor(data_store, data_cfg, train_cfg, hp_cfg)

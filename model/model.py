@@ -9,7 +9,7 @@ from model.layers import (
     TypeSpecificEncoder,
     SequenceEncoder
 )
-from model.configuration import HyperParameterConfiguration, TrainConfiguration
+from configuration.configuration import HyperParameterConfiguration, TrainConfiguration
 from keras.layers import Dense
 
 
