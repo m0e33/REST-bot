@@ -15,7 +15,7 @@ from data.preprocesser import Preprocessor
 from model.configuration import TrainConfiguration, HyperParameterConfiguration
 from model.metrics import Metrics
 
-tf.config.run_functions_eagerly(False)
+# tf.config.run_functions_eagerly(False)
 
 logging.basicConfig(format="%(message)s")
 logging.getLogger().setLevel(logging.INFO)
@@ -37,25 +37,24 @@ class KubeflowAdapter(KubeflowServe):
         """Download data component"""
         self.download_data(cloud_path, data_path)
 
-    def read_input(self, train_cfg: TrainConfiguration):
+    def read_input(self, train_cfg: TrainConfiguration, hp_cfg: HyperParameterConfiguration):
         """Read input data and split it into train and test."""
 
-        symbols = list(_load_symbols()['symbols'].keys())[:10]
+        symbols = list(_load_symbols()['symbols'].keys())[:4]
 
         data_cfg = DataConfiguration(
             symbols=symbols,
-            start="2019-04-06",
+            start="2020-12-06",
             end="2021-04-06",
             feedback_metrics=["open", "close", "high", "low", "vwap"],
-            stock_context_days=3,
             stock_news_limit=500
         )
 
         data_store = DataStore(data_cfg)
-        data_store.build()
+        data_store.rebuild()
 
         print("Preprocessor -> build events data with gt")
-        prepro = Preprocessor(data_store, data_cfg, train_cfg)
+        prepro = Preprocessor(data_store, data_cfg, train_cfg, hp_cfg)
         prepro.build_events_data_with_gt()
 
         print("Preprocessor -> get datasets")
@@ -84,9 +83,9 @@ class KubeflowAdapter(KubeflowServe):
 
     def train_model(self, pipeline_run=False, data_path: str = "") -> TrainingResult:
         train_cfg = TrainConfiguration()
-        train_ds, val_ds, test_ds = self.read_input(train_cfg)
-
         hp_cfg = HyperParameterConfiguration()
+
+        train_ds, val_ds, test_ds = self.read_input(train_cfg, hp_cfg)
 
         model = RESTNet(hp_cfg, train_cfg)
 

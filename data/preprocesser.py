@@ -11,7 +11,7 @@ from tensorflow.keras.layers.experimental.preprocessing import TextVectorization
 from data.data_store import DataStore
 from data.data_configuration import DataConfiguration
 from data.data_info import PriceDataInfo
-from model.configuration import TrainConfiguration
+from model.configuration import TrainConfiguration, HyperParameterConfiguration
 
 
 class EventType(Enum):
@@ -54,6 +54,7 @@ class Preprocessor:
         data_store: DataStore,
         data_cfg: DataConfiguration,
         train_cfg: TrainConfiguration,
+        hp_cfg: HyperParameterConfiguration
     ):
         self.data_store = data_store
         self.data_cfg = data_cfg
@@ -63,6 +64,7 @@ class Preprocessor:
         ), "API data price fields do not contain all fields that are configured as feedback metrics"
 
         self.train_cfg = train_cfg
+        self.hp_cfg = hp_cfg
         self.date_df = self._build_date_dataframe()
 
         # Predefine all dataframes for linter._.
@@ -74,7 +76,7 @@ class Preprocessor:
         self._gt_test_df = pd.DataFrame()
 
         self._vectorizer = TextVectorization(
-            max_tokens=20000, output_sequence_length=self.MAX_EVENT_LENGTH
+            max_tokens=self.data_cfg.stock_news_limit, output_sequence_length=self.MAX_EVENT_LENGTH
         )
         self.embedding_model: Sequential
         self._prepare_word_embedding()
@@ -181,7 +183,7 @@ class Preprocessor:
             if ds_type is DatasetType.TEST_DS:
                 return tf.data.experimental.load("test_ds")
 
-        sliding_window_length = self.data_cfg.stock_context_days
+        sliding_window_length = self.hp_cfg.sliding_window_size
 
         dates_count = len(events_df.groupby(level=0))
         symbols_count = len(events_df.groupby(level=1))
