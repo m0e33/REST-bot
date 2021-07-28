@@ -3,8 +3,8 @@ import pickle
 import os
 from dataclasses import dataclass
 
-HP_CACHING_PATH = "./cached_hp_cfg"
-TRAIN_CACHING_PATH = "./cached_train_cfg"
+HP_CACHING_PATH = "./configuration/cached_hp_cfg"
+TRAIN_CACHING_PATH = "./configuration/cached_train_cfg"
 
 
 @dataclass

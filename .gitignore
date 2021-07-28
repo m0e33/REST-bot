@@ -140,3 +140,4 @@ data/assets/glove.6B.300d.txt
 train_ds/*
 val_ds/*
 test_ds/*
+configuration/cached_*
