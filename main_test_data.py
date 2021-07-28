@@ -2,7 +2,7 @@
 
 from data.data_store import DataStore, DataConfiguration
 from data.preprocesser import Preprocessor
-from model.configuration import TrainConfiguration
+from configuration.configuration import TrainConfiguration
 
 if __name__ == "__main__":
     data_cfg = DataConfiguration(

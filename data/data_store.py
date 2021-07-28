@@ -16,7 +16,7 @@ from data.data_info import (
     MutualHoldersRelationDataInfo,
 )
 
-from data.data_configuration import DataConfiguration
+from configuration.data_configuration import DataConfiguration, serialize_data_cfg, deserialize_data_cfg, data_cfg_is_cached
 
 
 class DataType(Enum):
@@ -57,7 +57,11 @@ class DataStore:
     def __init__(self, data_cfg: DataConfiguration) -> None:
         self.api = APIAdapter()
         self.data_cfg = data_cfg
-        self.dirty_storage = False
+
+        self.old_data_can_be_reused = self._data_config_has_not_been_changed()
+        print("Data store reusable (from what we can tell from configs): " + str(self.old_data_can_be_reused))
+        serialize_data_cfg(self.data_cfg)
+
         self._basic_data_info = {
             DataType.PRICE_DATA: PriceDataInfo(DataStore.STORAGE_PATH, self.api, self.data_cfg),
             DataType.PRESS_DATA: PressDataInfo(DataStore.STORAGE_PATH, self.api, self.data_cfg.stock_news_limit),
@@ -147,8 +151,8 @@ class DataStore:
         data_info = self._basic_data_info[data_type]
 
         path = data_info.get_path(symbol)
-        if not _check_file(path):
-            self.dirty_storage = True
+        if not _check_file(path) or not self.old_data_can_be_reused:
+            self.old_data_can_be_reused = False
             data = data_info.get_data(symbol)
             write_csv(path, data, data_info.fields)
 
@@ -156,8 +160,8 @@ class DataStore:
         data_info = self._relation_data_info[data_type]
 
         path = data_info.get_path()
-        if not _check_file(path):
-            self.dirty_storage = True
+        if not _check_file(path) or not self.old_data_can_be_reused:
+            self.old_data_can_be_reused = False
             data = data_info.get_data()
             write_csv(path, data, data_info.fields)
 
@@ -181,3 +185,9 @@ class DataStore:
         data = read_csv_to_json_array(data_info.get_path(), data_info.fields)
 
         return data
+
+    def _data_config_has_not_been_changed(self):
+        if data_cfg_is_cached():
+            old_cfg = deserialize_data_cfg()
+            return old_cfg == self.data_cfg
+        return False

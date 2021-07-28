@@ -9,9 +9,10 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Embedding
 from tensorflow.keras.layers.experimental.preprocessing import TextVectorization
 from data.data_store import DataStore
-from data.data_configuration import DataConfiguration
+from configuration.data_configuration import DataConfiguration
 from data.data_info import PriceDataInfo
-from model.configuration import TrainConfiguration, HyperParameterConfiguration
+from configuration.configuration import TrainConfiguration, HyperParameterConfiguration, hp_cfg_is_cached, \
+    deserialize_hp_cfg, serialize_hp_cfg, train_cfg_is_cached, deserialize_train_cfg, serialize_train_cfg
 
 
 class EventType(Enum):
@@ -45,26 +46,32 @@ def _preprocess_event_df(symbol_df, event_type):
 
 
 class Preprocessor:
-
     """Preprocess data for model usage"""
 
     # pylint: disable=too-many-instance-attributes
     def __init__(
-        self,
-        data_store: DataStore,
-        data_cfg: DataConfiguration,
-        train_cfg: TrainConfiguration,
-        hp_cfg: HyperParameterConfiguration
+            self,
+            data_store: DataStore,
+            data_cfg: DataConfiguration,
+            train_cfg: TrainConfiguration,
+            hp_cfg: HyperParameterConfiguration
     ):
         self.data_store = data_store
         self.data_cfg = data_cfg
 
         assert (
-            len(set(self.data_cfg.feedback_metrics) - set(PriceDataInfo.fields)) == 0
+                len(set(self.data_cfg.feedback_metrics) - set(PriceDataInfo.fields)) == 0
         ), "API data price fields do not contain all fields that are configured as feedback metrics"
 
         self.train_cfg = train_cfg
         self.hp_cfg = hp_cfg
+
+        # advanced caching mechanism needs to safe new configurations
+        self._old_preprocessing_result_can_be_reused = self._check_reusability_of_old_preprocessing()
+        print("Preprocessing result reusable: " + str(self._old_preprocessing_result_can_be_reused))
+        serialize_hp_cfg(self.hp_cfg)
+        serialize_train_cfg(self.train_cfg)
+
         self.date_df = self._build_date_dataframe()
 
         # Predefine all dataframes for linter._.
@@ -90,7 +97,7 @@ class Preprocessor:
         """builds event data"""
 
         # check cached events_df
-        if self._preprocessing_results_have_been_cached():
+        if self._old_preprocessing_result_can_be_reused:
             return
 
         # vertically concatenate all symbols and their events
@@ -121,8 +128,8 @@ class Preprocessor:
         # to copy it over to the new events_df dataframe
         events_df = (
             events_df.groupby(["date", "symbol", "gt_trend"])["event"]
-            .apply(list)
-            .reset_index()
+                .apply(list)
+                .reset_index()
         )
         events_df.set_index(["date", "symbol"], inplace=True)
 
@@ -151,7 +158,7 @@ class Preprocessor:
         )
 
     def _prepare_word_embedding(self):
-        if self._preprocessing_results_have_been_cached():
+        if self._old_preprocessing_result_can_be_reused:
             return
 
         self._set_vectorizer()
@@ -175,7 +182,7 @@ class Preprocessor:
     def _get_tf_dataset(self, events_df, gt_df, ds_type: DatasetType):
         """Return windowed dataset based on events_df and ground truth"""
 
-        if self._preprocessing_results_have_been_cached():
+        if self._old_preprocessing_result_can_be_reused:
             if ds_type is DatasetType.TRAIN_DS:
                 return tf.data.experimental.load("train_ds")
             if ds_type is DatasetType.VAL_DS:
@@ -224,7 +231,6 @@ class Preprocessor:
             )
 
         np_stock_matrix = np.apply_along_axis(array_cast, axis=2, arr=np_stock_matrix)
-
 
         # build the gt np matrix
         np_gt_trend_matrix = gt_df.values.reshape(dates_count, symbols_count, 1)
@@ -332,8 +338,8 @@ class Preprocessor:
         indicator_next_day = symbol_feedback_df.shift(-1).replace(np.nan, 0)
         indicator_current_day = symbol_feedback_df
         symbol_feedback_df = (
-            indicator_next_day - indicator_current_day
-        ) / indicator_current_day
+                                     indicator_next_day - indicator_current_day
+                             ) / indicator_current_day
 
         symbol_feedback_df = symbol_feedback_df.join(symbol_price_df["date"])
 
@@ -348,8 +354,8 @@ class Preprocessor:
                 field
                 for field in PriceDataInfo.fields
                 if field != "date"
-                and field != "gt_trend"
-                and field not in self.data_cfg.feedback_metrics
+                   and field != "gt_trend"
+                   and field not in self.data_cfg.feedback_metrics
             ],
             axis=1,
         )
@@ -461,12 +467,25 @@ class Preprocessor:
 
         return embedding_matrix
 
-    def _preprocessing_results_have_been_cached(self):
+    def _check_reusability_of_old_preprocessing(self):
         has_been_cached = bool(
-            not self.data_store.dirty_storage
-            and os.path.isdir("train_ds")
+            os.path.isdir("train_ds")
             and os.path.isdir("test_ds")
             and os.path.isdir("val_ds")
         )
 
-        return has_been_cached
+        new_configs = self._hp_cfg_has_changed() or self._train_cfg_has_changed()
+
+        return has_been_cached and not new_configs and self.data_store.old_data_can_be_reused
+
+    def _hp_cfg_has_changed(self):
+        if hp_cfg_is_cached():
+            old_cfg = deserialize_hp_cfg()
+            return old_cfg != self.hp_cfg
+        return True
+
+    def _train_cfg_has_changed(self):
+        if train_cfg_is_cached():
+            old_cfg = deserialize_train_cfg()
+            return old_cfg != self.train_cfg
+        return True

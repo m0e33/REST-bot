@@ -1,7 +1,7 @@
 """Layer"""
 import tensorflow as tf
 from tensorflow import keras
-from model.configuration import HyperParameterConfiguration
+from configuration.configuration import HyperParameterConfiguration
 from model.layers.sequence_encoder import SequenceEncoder
 
 
