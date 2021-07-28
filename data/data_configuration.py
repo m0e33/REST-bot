@@ -3,6 +3,7 @@
 from typing import List
 from datetime import datetime
 from enum import Enum
+from dataclasses import dataclass
 
 
 class GroundTruthMetric(Enum):
@@ -15,6 +16,7 @@ class GroundTruthMetric(Enum):
     VWAP = "vwap"
 
 
+@dataclass
 class DataConfiguration:
 
     # pylint: disable=too-many-instance-attributes
@@ -26,6 +28,7 @@ class DataConfiguration:
         feedback_metrics: List[str],
         gt_metric: GroundTruthMetric = GroundTruthMetric.CLOSE,
         stock_context_days: int = 30,
+        stock_news_limit: int = 500
     ) -> None:
         self.start_str = start
         self.start = datetime.strptime(start, self.DATE_FORMAT).date()
@@ -36,10 +39,9 @@ class DataConfiguration:
         self.feedback_metrics = feedback_metrics
         self.symbols = symbols
         self.stock_context_days = stock_context_days
+        self.stock_news_limit = stock_news_limit
 
     """Single source data configuration class"""
-    # pylint: disable=too-many-arguments
-
     DATE_FORMAT = "%Y-%m-%d"
 
     def public_method(self):

@@ -29,10 +29,12 @@ def _load_symbols():
 
 
 class KubeflowAdapter(KubeflowServe):
+
     def __init__(self):
         super().__init__()
 
     def download_data_component(self, cloud_path: str, data_path: str):
+        """Download data component"""
         self.download_data(cloud_path, data_path)
 
     def read_input(self, train_cfg: TrainConfiguration):
@@ -45,7 +47,8 @@ class KubeflowAdapter(KubeflowServe):
             start="2019-04-06",
             end="2021-04-06",
             feedback_metrics=["open", "close", "high", "low", "vwap"],
-            stock_context_days=15,
+            stock_context_days=3,
+            stock_news_limit=500
         )
 
         data_store = DataStore(data_cfg)

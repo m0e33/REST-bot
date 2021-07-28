@@ -24,6 +24,7 @@ if __name__ == "__main__":
         end="2021-05-01",
         feedback_metrics=["open", "close", "high", "low", "vwap"],
         stock_context_days=6,
+        stock_news_fetch_count=20000
     )
 
     train_cfg = TrainConfiguration()
