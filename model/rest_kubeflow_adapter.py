@@ -47,7 +47,7 @@ class KubeflowAdapter(KubeflowServe):
             start="2020-12-06",
             end="2021-04-06",
             feedback_metrics=["open", "close", "high", "low", "vwap"],
-            stock_news_limit=500
+            stock_news_limit=600
         )
 
         data_store = DataStore(data_cfg)
