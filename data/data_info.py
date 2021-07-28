@@ -52,11 +52,12 @@ class PriceDataInfo(BaseDataInfo):
 class PressDataInfo(BaseDataInfo):
     """Information for Press Release Data"""
 
-    def __init__(self, base_path, api: APIAdapter):
+    def __init__(self, base_path, api: APIAdapter, limit: int):
         super().__init__(base_path, api)
+        self.limit = limit
         self._path = f"{self._base_path}press_limit={self.limit}_"
 
-    limit = 2000
+
     fields = ["symbol", "date", "title", "text"]
 
     def get_data(self, symbol: str):
@@ -67,11 +68,11 @@ class PressDataInfo(BaseDataInfo):
 class StockNewsDataInfo(BaseDataInfo):
     """Information for Stock News Data"""
 
-    def __init__(self, base_path, api: APIAdapter):
+    def __init__(self, base_path, api: APIAdapter, limit: int):
         super().__init__(base_path, api)
+        self.limit = limit
         self._path = f"{self._base_path}stock_news_limit={self.limit}_"
 
-    limit = 20000
     fields = ["symbol", "publishedDate", "title", "text", "site", "url"]
 
     def get_data(self, symbol: str):
