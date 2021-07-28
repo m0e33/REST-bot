@@ -27,7 +27,6 @@ class DataConfiguration:
         end: str,
         feedback_metrics: List[str],
         gt_metric: GroundTruthMetric = GroundTruthMetric.CLOSE,
-        stock_context_days: int = 30,
         stock_news_limit: int = 500
     ) -> None:
         self.start_str = start
@@ -38,7 +37,6 @@ class DataConfiguration:
         self.gt_metric = gt_metric
         self.feedback_metrics = feedback_metrics
         self.symbols = symbols
-        self.stock_context_days = stock_context_days
         self.stock_news_limit = stock_news_limit
 
     """Single source data configuration class"""
