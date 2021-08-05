@@ -50,8 +50,8 @@ class Metrics:
     self.train_mae_results.append(self.train_epoch_mae.result())
     self.train_rmse_results.append(self.train_epoch_rmse.result())
 
-  def print_epoch_state(self, epoch):
-    logging.info("Epoch {:01d} done: TRAIN: Loss: {:.3f}, Accuracy: {:.1%}, MAE: {:.3f}, RMSE: {:.3f} \n"
+  def print_epoch_state(self, epoch, logger):
+    logger.info("Epoch {:01d} done: TRAIN: Loss: {:.3f}, Accuracy: {:.1%}, MAE: {:.3f}, RMSE: {:.3f} \n"
                  "----------------------VALIDATION: Loss: {:.3f}, Accuracy: {:.1%}, MAE: {:.3f}, RMSE: {:.3f}".format(epoch,
                                                                                                               self.train_epoch_loss_avg.result(),
                                                                                                               self.train_epoch_accuracy.result(),

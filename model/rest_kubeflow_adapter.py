@@ -6,6 +6,7 @@ import tensorflow as tf
 from model.model import RESTNet
 import os
 import yaml
+from dataclasses import asdict
 
 from kubeflow_utils.kubeflow_serve import KubeflowServe
 from kubeflow_utils.metadata_config import MetadataConfig
@@ -17,8 +18,7 @@ from model.metrics import Metrics
 
 # tf.config.run_functions_eagerly(False)
 
-logging.basicConfig(format="%(message)s")
-logging.getLogger().setLevel(logging.INFO)
+logger = logging.getLogger("kubeflow_adapter")
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -40,29 +40,36 @@ class KubeflowAdapter(KubeflowServe):
     def read_input(self, train_cfg: TrainConfiguration, hp_cfg: HyperParameterConfiguration):
         """Read input data and split it into train and test."""
 
+        logger.info("Reading Symbols")
         symbols = list(_load_symbols()['symbols'].keys())[:4]
 
         data_cfg = DataConfiguration(
             symbols=symbols,
-            start="2020-12-06",
+            start="2021-02-01",
             end="2021-04-06",
             feedback_metrics=["open", "close", "high", "low", "vwap"],
-            stock_news_limit=600
+            stock_news_limit=200
         )
 
+        logger.info(f"Data configuration: {str(data_cfg)}")
+
         data_store = DataStore(data_cfg)
+
+        logger.info("Build Data Store")
         data_store.build()
 
-        print("Preprocessor -> build events data with gt")
+        logger.info("Preprocessing Data")
         prepro = Preprocessor(data_store, data_cfg, train_cfg, hp_cfg)
         prepro.build_events_data_with_gt()
+        logger.info("Finished Preprocessing Data")
 
-        print("Preprocessor -> get datasets")
+        logger.info("Build Datasets")
         train_ds = prepro.get_train_ds()
         val_ds = prepro.get_val_ds()
         test_ds = prepro.get_test_ds()
+        logger.info("Finished bulding Datasets")
 
-        print("Preprocessor -> Returning Datasets")
+        logger.info("Data is ready")
         return train_ds, val_ds, test_ds
 
     def get_metadata(self) -> MetadataConfig:
@@ -85,11 +92,15 @@ class KubeflowAdapter(KubeflowServe):
         train_cfg = TrainConfiguration()
         hp_cfg = HyperParameterConfiguration()
 
+        logger.info(f"Train configuration: {str(train_cfg)}")
+        logger.info(f"Hyperparameter configuration: {str(hp_cfg)}")
+
         train_ds, val_ds, test_ds = self.read_input(train_cfg, hp_cfg)
 
         model = RESTNet(hp_cfg, train_cfg)
 
         num_epochs = 40
+        logger.info(f"Run for {num_epochs} epochs")
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
         loss_object = tf.keras.losses.MeanAbsoluteError()
@@ -112,11 +123,11 @@ class KubeflowAdapter(KubeflowServe):
             loss_value, y_predict = loss(model, example_input, example_label)
             logging.info("Loss test: {}".format(loss_value.numpy))
 
-        logging.info("Starting training..")
+        logger.info("Starting training..")
 
         for epoch in range(num_epochs):
             start_time = time.time()
-            logging.info(f"Started Epoch {epoch+1} from {num_epochs}")
+            logger.info(f"Started Epoch {epoch+1} from {num_epochs}")
 
             metrics.reset()
 
@@ -137,9 +148,9 @@ class KubeflowAdapter(KubeflowServe):
                 metrics.update_val_metric(loss_value, y_batch_val, val_predict)
 
             metrics.log_final_state()
-            metrics.print_epoch_state(epoch)
+            metrics.print_epoch_state(epoch, logger)
 
-            logging.info("Time taken: %.2fs" % (time.time() - start_time))
+            logger.info("Time taken: %.2fs" % (time.time() - start_time))
 
         return TrainingResult(
             models=[],
