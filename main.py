@@ -1,7 +1,30 @@
 from pipeline import compile_run_pipeline
 from model.rest_kubeflow_adapter import KubeflowAdapter
+import logging
+
+format = '([%(name)s] %(levelname)s %(asctime)s) -- %(message)s'
+logging.basicConfig(filename='log.log', level=logging.DEBUG, format=format, datefmt='%H:%M:%S', force=True)
+
+# set up console logging
+console = logging.StreamHandler()
+console.setLevel(logging.DEBUG)
+formatter = logging.Formatter(format)
+console.setFormatter(formatter)
+
+logging.getLogger('').addHandler(console)
+
+logger = logging.getLogger("MAIN")
 
 if __name__ == '__main__':
+
+    logger.info(
+        "\n*************************************************\n"
+        "*                                               *\n"
+        "*               Starting model run              *\n"
+        "*                                               *\n"
+        "*************************************************\n"
+    )
+
     model = KubeflowAdapter()
 
     # model.create_bucket()
@@ -33,3 +56,11 @@ if __name__ == '__main__':
     # model.deploy()
 
     # compile_run_pipeline()
+
+    logger.info(
+        "\n*************************************************\n"
+        "*                                               *\n"
+        "*               Finished model run              *\n"
+        "*                                               *\n"
+        "*************************************************\n"
+    )

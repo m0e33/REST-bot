@@ -24,6 +24,8 @@ DOCKER_REGISTRY = f'{settings.docker.registry_prefix}/{GCP_PROJECT}/{settings.do
 py_version = ".".join([str(x) for x in sys.version_info[0:3]])
 use_py_36 = py_version.startswith('3.6')
 
+logger = logging.getLogger('kubeflow_serve')
+
 def get_gcs_model_file(model_file):
     return "{}/models/{}".format(GCS_BUCKET_PATH, model_file)
 
@@ -69,7 +71,7 @@ class KubeflowServe(ABC):
 
     def train(self, pipeline_run: bool = False, **kwargs):
         self.artifact_store.re_init(pipeline_run)
-        # logging.info(kwargs)
+        # logger.info(kwargs)
 
         model_names = [self.get_metadata().model_names] if type(
             self.get_metadata().model_names) is str else self.get_metadata().model_names
@@ -83,9 +85,9 @@ class KubeflowServe(ABC):
             dataset_version=self.get_metadata().dataset_version,
         )
 
-        logging.info("Calling model training")
+        logger.info("Calling model training")
         training_result = self.train_model(pipeline_run=pipeline_run, **kwargs)
-        logging.info("Finished Training")
+        logger.info("Finished Training")
         models = training_result.models if isinstance(training_result.models, list) else [training_result.models]
 
         if pipeline_run:
@@ -100,7 +102,7 @@ class KubeflowServe(ABC):
             with open("/mlpipeline-metrics.json", mode="w") as f:
                 json.dump(metrics, f)
 
-        logging.info(
+        logger.info(
             f'Trained model(s) {model_names} with hyperparameters {training_result.hyperparameters} and evaluation {training_result.evaluation}.')
 
         self.artifact_store.log_execution_output(
@@ -133,10 +135,10 @@ class KubeflowServe(ABC):
         )
 
     def predict(self, features: Dict, feature_names=None, **kwargs) -> any:
-        logging.info('predict')
-        logging.info('features:')
+        logger.info('predict')
+        logger.info('features:')
         for key in features.keys():
-            logging.info(f'{key}: {features[key]}')
+            logger.info(f'{key}: {features[key]}')
 
         model_names = [self.get_metadata().model_names] if type(
             self.get_metadata().model_names) is str else self.get_metadata().model_names
@@ -149,7 +151,7 @@ class KubeflowServe(ABC):
                 self.get_metadata().model_names) is str else self.get_metadata().model_names
             for model_file in model_names:
                 if not os.path.isfile(model_file):
-                    logging.info(f'Load model {model_file} from gcloud')
+                    logger.info(f'Load model {model_file} from gcloud')
                     gcs_model_file = get_gcs_model_file(model_file)
                     gcs_copy(gcs_model_file, model_file)
 
@@ -157,10 +159,10 @@ class KubeflowServe(ABC):
                 model = joblib.load(model_file)
                 self.trained_models.append(model)
 
-        logging.info(f"Model(s): {parsed_model_names}")
+        logger.info(f"Model(s): {parsed_model_names}")
         result = self.predict_model(models=self.trained_models, **features)
 
-        logging.info(result)
+        logger.info(result)
 
         return result
 
@@ -193,7 +195,7 @@ class KubeflowServe(ABC):
         os.system(f'docker tag {image_name}:latest {registry}/{image_name}')
         os.system(f'docker push {registry}/{image_name}')
 
-        logging.info(f"Build prebuild image {registry}/{image_name} on python version {py_version}")
+        logger.info(f"Build prebuild image {registry}/{image_name} on python version {py_version}")
 
     def build_push_docker_image(self):
         registry = f'{settings.docker.registry_prefix}/{GCP_PROJECT}'
@@ -201,10 +203,10 @@ class KubeflowServe(ABC):
 
         os.system(f'docker build . --build-arg PREBUILD_IMAGE={image} -t {self.parse_base_image()} -f Dockerfile')
         os.system(f'docker push {self.parse_base_image()}')
-        logging.info(f"Build image {self.parse_base_image()} on python version {py_version}")
+        logger.info(f"Build image {self.parse_base_image()} on python version {py_version}")
 
     def train_online(self):
-        logging.info("Train online")
+        logger.info("Train online")
 
         fairing.config.set_builder('docker', registry=DOCKER_REGISTRY, base_image=self.parse_base_image())
         fairing.config.set_deployer(
@@ -215,7 +217,7 @@ class KubeflowServe(ABC):
         create_endpoint()
 
     def deploy(self):
-        logging.info("Deploy model")
+        logger.info("Deploy model")
 
         pod_spec_mutators = [self.metadata_pod_spec_mutator]
 
@@ -231,9 +233,9 @@ class KubeflowServe(ABC):
         # create_endpoint = fairing.config.fn(self.__class__)
         fairing.config.set_preprocessor('function', function_obj=self.__class__)
         preprocessor = fairing.config.get_preprocessor()
-        logging.info("Using preprocessor: %s", preprocessor)
+        logger.info("Using preprocessor: %s", preprocessor)
         builder = fairing.config.get_builder(preprocessor)
-        logging.info("Using builder: %s", builder)
+        logger.info("Using builder: %s", builder)
         deployer = fairing.config.get_deployer()
 
         builder.build()
@@ -250,11 +252,11 @@ class KubeflowServe(ABC):
         metadata = self.fetch_metadata()
 
         for metadata_key, metadata_value in vars(metadata).items():
-            logging.info(metadata_value)
+            logger.info(metadata_value)
             if type(metadata_value) is str:
                 pod_spec_env.append({'name': f'META_{metadata_key}', 'value': metadata_value})
             else:
-                logging.info(",".join(metadata_value))
+                logger.info(",".join(metadata_value))
                 pod_spec_env.append({'name': f'META_{metadata_key}', 'value': ",".join(metadata_value)})
 
         type_hints = typing.get_type_hints(self.predict_model)
@@ -278,7 +280,7 @@ class KubeflowServe(ABC):
         if not os.path.exists(destination_folder):
             os.makedirs(destination_folder)
 
-        logging.info(f'Download {path} into {destination_folder}')
+        logger.info(f'Download {path} into {destination_folder}')
 
         gcs_copy_dir(path, destination_folder)
 
@@ -286,7 +288,7 @@ class KubeflowServe(ABC):
         """Downloads a blob from the bucket."""
         # destination_folder einfach als key nehmen
         gs_path = get_gcs_data_folder(destination_folder)
-        logging.info(f'Upload {source_folder} into {gs_path}')
+        logger.info(f'Upload {source_folder} into {gs_path}')
         gcs_copy_dir(source_folder, gs_path)
 
     def create_bucket(self):

@@ -1,4 +1,5 @@
 """Preprocess data for model usage"""
+import logging
 from enum import Enum
 import os.path
 import pandas as pd
@@ -14,6 +15,7 @@ from data.data_info import PriceDataInfo
 from configuration.configuration import TrainConfiguration, HyperParameterConfiguration, hp_cfg_is_cached, \
     deserialize_hp_cfg, serialize_hp_cfg, train_cfg_is_cached, deserialize_train_cfg, serialize_train_cfg
 
+logger = logging.getLogger("preprocessor")
 
 class EventType(Enum):
     """To distinguish between event types for a stock"""
@@ -68,7 +70,7 @@ class Preprocessor:
 
         # advanced caching mechanism needs to safe new configurations
         self._old_preprocessing_result_can_be_reused = self._check_reusability_of_old_preprocessing()
-        print("Preprocessing result reusable: " + str(self._old_preprocessing_result_can_be_reused))
+        logger.info("Preprocessing result reusable: " + str(self._old_preprocessing_result_can_be_reused))
         serialize_hp_cfg(self.hp_cfg)
         serialize_train_cfg(self.train_cfg)
 
@@ -463,7 +465,7 @@ class Preprocessor:
             else:
                 missed_words.append(word)
                 misses += 1
-        print("Converted %d words (%d misses)" % (hits, misses))
+        logger.info("Converted %d words (%d misses)" % (hits, misses))
 
         return embedding_matrix
 

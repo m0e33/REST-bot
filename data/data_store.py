@@ -1,5 +1,5 @@
 """DataStore for handling data delivery"""
-
+import logging
 import os
 import shutil
 from enum import Enum
@@ -18,6 +18,7 @@ from data.data_info import (
 
 from configuration.data_configuration import DataConfiguration, serialize_data_cfg, deserialize_data_cfg, data_cfg_is_cached
 
+logger = logging.getLogger("data store")
 
 class DataType(Enum):
     """To distinguish between different types of data"""
@@ -59,7 +60,7 @@ class DataStore:
         self.data_cfg = data_cfg
 
         self.old_data_can_be_reused = self._data_config_has_not_been_changed()
-        print("Data store reusable (from what we can tell from configs): " + str(self.old_data_can_be_reused))
+        logger.info("Data store reusable (from what we can tell from configs): " + str(self.old_data_can_be_reused))
         serialize_data_cfg(self.data_cfg)
 
         self._basic_data_info = {
