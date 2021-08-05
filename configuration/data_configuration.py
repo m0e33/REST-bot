@@ -62,6 +62,9 @@ class DataConfiguration:
             and self.symbols == other.symbols
             and self.stock_news_limit == other.stock_news_limit)
 
+    def __repr__(self):
+        return str({attr:getattr(self, attr) for attr in dir(self) if not callable(getattr(self, attr)) and not attr.startswith("__")})
+
 
 def serialize_data_cfg(cfg: DataConfiguration):
     """ Serializes data fetching configuration using pickle """
