@@ -1,3 +1,4 @@
+import datetime
 import logging
 import time
 from typing import Union, List
@@ -17,15 +18,13 @@ from configuration.configuration import TrainConfiguration, HyperParameterConfig
 from model.metrics import Metrics
 
 # tf.config.run_functions_eagerly(False)
+from utils import load_symbols
+from utils.progess import Progress
 
 logger = logging.getLogger("kubeflow_adapter")
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
-def _load_symbols():
-    with open("symbols.yaml", 'r') as stream:
-        symbols = yaml.safe_load(stream)
-    return symbols
+current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H;%M;%S")
 
 
 class KubeflowAdapter(KubeflowServe):
@@ -41,12 +40,11 @@ class KubeflowAdapter(KubeflowServe):
         """Read input data and split it into train and test."""
 
         logger.info("Reading Symbols")
-        symbols = list(_load_symbols()['symbols'].keys())[:4]
 
         data_cfg = DataConfiguration(
-            symbols=symbols,
-            start="2021-02-01",
-            end="2021-04-06",
+            symbols=load_symbols(4),
+            start="2021-01-01",
+            end="2021-08-01",
             feedback_metrics=["open", "close", "high", "low", "vwap"],
             stock_news_limit=200
         )
@@ -99,58 +97,73 @@ class KubeflowAdapter(KubeflowServe):
 
         model = RESTNet(hp_cfg, train_cfg)
 
-        num_epochs = 40
-        logger.info(f"Run for {num_epochs} epochs")
-
         optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
-        loss_object = tf.keras.losses.MeanAbsoluteError()
+        loss_object = tf.keras.losses.MeanSquaredError()
 
-        def loss(model, x, y, training=False):
-            # training=training is needed only if there are layers with different
-            # behavior during training versus inference (e.g. Dropout).
-            y_predict= model(x, training=training)
+        # Define our metrics
+        train_loss = tf.keras.metrics.Mean('train_loss', dtype=tf.float32)
+        test_loss = tf.keras.metrics.Mean('test_loss', dtype=tf.float32)
 
-            return loss_object(y_true=y, y_pred=y_predict), y_predict
-
-        def grad(model, inputs, targets):
+        def train_step(model, optimizer, x_train, y_train):
             with tf.GradientTape() as tape:
-                loss_value, y_predict = loss(model, inputs, targets)
-            return loss_value, tape.gradient(loss_value, model.trainable_variables), y_predict
+                predictions = model(x_train, training=True)
+                loss = loss_object(y_train, predictions)
+            grads = tape.gradient(loss, model.trainable_variables)
+            optimizer.apply_gradients(zip(grads, model.trainable_variables))
+
+            train_loss(loss)
+
+        def test_step(model, x_test, y_test):
+            predictions = model(x_test)
+            loss = loss_object(y_test, predictions)
+
+            test_loss(loss)
+
+        train_log_dir = f'logs/gradient_tape/{current_time}/train'
+        test_log_dir = f'logs/gradient_tape/{current_time}/test'
+        train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+        test_summary_writer = tf.summary.create_file_writer(test_log_dir)
 
         metrics = Metrics()
 
-        for example_input, example_label in train_ds.take(1):
-            loss_value, y_predict = loss(model, example_input, example_label)
-            logging.info("Loss test: {}".format(loss_value.numpy))
-
         logger.info("Starting training..")
+        progress = Progress(hp_cfg.num_epochs)
+        tf.profiler.experimental.start(f"logs/profiler/{current_time}")
 
-        for epoch in range(num_epochs):
+        for epoch in range(hp_cfg.num_epochs):
             start_time = time.time()
-            logger.info(f"Started Epoch {epoch+1} from {num_epochs}")
+            logger.info(f"Started Epoch {epoch+1} from {hp_cfg.num_epochs}")
 
             metrics.reset()
 
-            # Training loop - using batches of 32
+            # Training loop
             for x_batch_train, y_batch_train in train_ds:
-                # Optimize the model
-                loss_value, grads, y_predict = grad(model, x_batch_train, y_batch_train)
-                optimizer.apply_gradients(zip(grads, model.trainable_variables))
-                logging.info(loss_value)
-                # Track progress
-                metrics.update_train_metrics(loss_value, y_batch_train, y_predict)
-
-            # End epoch
+                train_step(model, optimizer, x_batch_train, y_batch_train)
+            with train_summary_writer.as_default():
+                tf.summary.scalar('loss', train_loss.result(), step=epoch)
 
             for x_batch_val, y_batch_val in val_ds:
-                loss_value, val_predict = loss(model, x_batch_val, y_batch_val)
+                #loss_value, val_predict = loss(model, x_batch_val, y_batch_val)
                 # Update val metrics
-                metrics.update_val_metric(loss_value, y_batch_val, val_predict)
+                #metrics.update_val_metric(loss_value, y_batch_val, val_predict)
+                test_step(model, x_batch_val, y_batch_val)
 
-            metrics.log_final_state()
-            metrics.print_epoch_state(epoch, logger)
+            with test_summary_writer.as_default():
+                tf.summary.scalar('loss', test_loss.result(), step=epoch)
 
-            logger.info("Time taken: %.2fs" % (time.time() - start_time))
+            #metrics.log_final_state()
+            #metrics.print_epoch_state(epoch, logger)
+
+            step_duration = time.time() - start_time
+            with train_summary_writer.as_default():
+                tf.summary.scalar('step_duration', step_duration, step=epoch)
+
+            if epoch >= 10:
+                tf.profiler.experimental.stop()
+
+            progress.step(step_duration)
+            logger.info(progress.eta(epoch))
+
 
         return TrainingResult(
             models=[],

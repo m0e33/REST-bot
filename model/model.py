@@ -36,11 +36,12 @@ class RESTNet(keras.Model):
         self.stock_dependent_influence = StockDependentInfluence()
         self.stock_trend_forecaster = Dense(1)
 
-    # @tf.function
+    @tf.function
     def call(self, inputs):
         logger.debug("Starting forward pass of batch")
         return tf.map_fn(self._call, inputs, parallel_iterations=self.train_cfg.batch_size)
 
+    @tf.function
     def _call(self, inputs):
         # since we have attached the events feedback to the event embedding
         # we have to extract it here again for the tse to work properly

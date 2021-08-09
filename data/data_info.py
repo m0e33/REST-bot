@@ -109,20 +109,16 @@ class IndustryRelationDataInfo(BaseRelationDataInfo):
     def get_data(self):
         """Get industry relation of symbols via api"""
 
-        companies = filter(
-            None,
-            [self._api.get_industry_classification(symbol) for symbol in self.fields],
-        )
+        companies = [self._api.get_industry_classification(symbol) for symbol in self.symbols]
+
         symbols_industries = {
             company[0]["symbol"]: company[0]["industryTitle"] for company in companies
         }
 
         industry_data = []
         for symbol in self.symbols:
-            industry_dict = {}
-            industry_dict["symbol"] = symbol
+            industry_dict = {"symbol": symbol}
             for company, industry in symbols_industries.items():
-                inter = set(list(symbols_industries.keys())).intersection(set(self.symbols))
                 industry_dict[company] = (
                     1 if symbols_industries[symbol] == industry else 0
                 )
@@ -141,17 +137,14 @@ class StockPeerRelationDataInfo(BaseRelationDataInfo):
     def get_data(self):
         """Get stock peer relation of symbols via api"""
 
-        companies = list(
-            filter(None, [self._api.get_stock_peers(symbol) for symbol in self.fields])
-        )
+        companies = [self._api.get_stock_peers(symbol) for symbol in self.symbols]
         company_peers = {
             company[0]["symbol"]: company[0]["peersList"] for company in companies
         }
 
         peer_data = []
         for symbol in self.symbols:
-            peer_dict = {}
-            peer_dict["symbol"] = symbol
+            peer_dict = {"symbol": symbol}
             for company, peers in company_peers.items():
                 peer_dict[company] = 1 if symbol in peers else 0
             peer_data.append(peer_dict)
@@ -169,9 +162,7 @@ class InstitutionalHoldersRelationDataInfo(BaseRelationDataInfo):
     def get_data(self):
         """Get institutional holders relation of symbols via api"""
 
-        return build_holder_relation(
-            self.symbols, self._api.get_institutional_holders, self.fields, threshold=2
-        )
+        return build_holder_relation(self.symbols, self._api.get_institutional_holders, threshold=2)
 
 
 class MutualHoldersRelationDataInfo(BaseRelationDataInfo):
@@ -184,6 +175,4 @@ class MutualHoldersRelationDataInfo(BaseRelationDataInfo):
     def get_data(self):
         """Get mutual holders relation of symbols via api"""
 
-        return build_holder_relation(
-            self.symbols, self._api.get_institutional_holders, self.fields, threshold=5
-        )
+        return build_holder_relation(self.symbols, self._api.get_institutional_holders, threshold=5)
