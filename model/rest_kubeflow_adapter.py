@@ -128,24 +128,26 @@ class KubeflowAdapter(KubeflowServe):
 
         logger.info("Starting training..")
         progress = Progress(hp_cfg.num_epochs)
-        tf.profiler.experimental.start(f"logs/profiler/{current_time}")
 
+        train_ds_iter = iter(train_ds)
         for epoch in range(hp_cfg.num_epochs):
+            if epoch == 10:
+                tf.profiler.experimental.start(f"logs/profiler/{current_time}")
+
             start_time = time.time()
             logger.info(f"Started Epoch {epoch+1} from {hp_cfg.num_epochs}")
 
             metrics.reset()
 
             # Training loop
+            # with tf.profiler.experimental.Trace("Train", step_num=step):
             for x_batch_train, y_batch_train in train_ds:
                 train_step(model, optimizer, x_batch_train, y_batch_train)
+
             with train_summary_writer.as_default():
                 tf.summary.scalar('loss', train_loss.result(), step=epoch)
 
             for x_batch_val, y_batch_val in val_ds:
-                #loss_value, val_predict = loss(model, x_batch_val, y_batch_val)
-                # Update val metrics
-                #metrics.update_val_metric(loss_value, y_batch_val, val_predict)
                 test_step(model, x_batch_val, y_batch_val)
 
             with test_summary_writer.as_default():
@@ -158,7 +160,7 @@ class KubeflowAdapter(KubeflowServe):
             with train_summary_writer.as_default():
                 tf.summary.scalar('step_duration', step_duration, step=epoch)
 
-            if epoch >= 10:
+            if epoch == 20:
                 tf.profiler.experimental.stop()
 
             progress.step(step_duration)
