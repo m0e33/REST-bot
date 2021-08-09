@@ -56,7 +56,8 @@ class DataStore:
     STORAGE_PATH = "./data/storage/"
 
     def __init__(self, data_cfg: DataConfiguration) -> None:
-        os.mkdir(self.STORAGE_PATH)
+        if not os.path.exists(self.STORAGE_PATH):
+            os.mkdir(self.STORAGE_PATH)
         self.api = APIAdapter()
         self.data_cfg = data_cfg
         self.old_data_can_be_reused = self._data_config_has_not_been_changed()

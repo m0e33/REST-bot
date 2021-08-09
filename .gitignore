@@ -135,9 +135,7 @@ dmypy.json
 .pyre/
 
 # application
-data/storage/*
-data/assets/glove.6B.300d.txt
-train_ds/*
-val_ds/*
-test_ds/*
+data/assets
+data/storage
 configuration/cached_*
+logs

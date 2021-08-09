@@ -7,11 +7,11 @@ logging.basicConfig(filename='log.log', level=logging.DEBUG, format=format, date
 
 # set up console logging
 console = logging.StreamHandler()
-console.setLevel(logging.DEBUG)
+console.setLevel(logging.INFO)
 formatter = logging.Formatter(format)
 console.setFormatter(formatter)
 
-logging.getLogger('').addHandler(console)
+logging.getLogger().addHandler(console)
 
 logger = logging.getLogger("MAIN")
 
