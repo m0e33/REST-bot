@@ -24,7 +24,7 @@ from utils.progess import Progress
 logger = logging.getLogger("kubeflow_adapter")
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H;%M;%S")
+current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H꞉%M꞉%S")
 
 
 class KubeflowAdapter(KubeflowServe):
@@ -42,7 +42,7 @@ class KubeflowAdapter(KubeflowServe):
         logger.info("Reading Symbols")
 
         data_cfg = DataConfiguration(
-            symbols=load_symbols(4),
+            symbols=load_symbols(10),
             start="2021-01-01",
             end="2021-08-01",
             feedback_metrics=["open", "close", "high", "low", "vwap"],
