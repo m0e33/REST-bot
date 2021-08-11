@@ -1,10 +1,9 @@
 """Layer"""
 import tensorflow as tf
-from tensorflow import keras
-from keras.layers import Dense, LeakyReLU
+from tensorflow.keras.layers import Dense, LeakyReLU, Layer
 
 
-class StockDependentInfluence(keras.layers.Layer):
+class StockDependentInfluence(Layer):
     """Layer docstring"""
     def __init__(self):
         super().__init__()
