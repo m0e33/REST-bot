@@ -18,12 +18,13 @@ from configuration.configuration import TrainConfiguration, HyperParameterConfig
 from model.metrics import Metrics
 
 # tf.config.run_functions_eagerly(False)
-from utils import load_symbols
 from utils.progess import Progress
+from utils.symbols import load_symbols
+from utils.gpu import find_free_gpu
 
 logger = logging.getLogger("kubeflow_adapter")
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = find_free_gpu()
 current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H꞉%M꞉%S")
 
 
