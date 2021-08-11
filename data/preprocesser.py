@@ -68,7 +68,7 @@ def restore_dataset_df_from_file(base_dataset_path):
     events_df = pickle.load(open(base_dataset_path + "events.p", "rb"))
     gt_df = pickle.load(open(base_dataset_path + "gt.p", "rb"))
 
-    return [events_df, gt_df]
+    return events_df, gt_df
 
 
 def dataset_np_has_been_build(base_path_to_ds):
@@ -113,9 +113,7 @@ class Preprocessor:
 
         self.date_df = self._build_date_dataframe()
 
-        self.train_ds_generator_spec = []
-        self.val_ds_generator_spec = []
-        self.test_ds_generator_spec = []
+        self.dataset_spec = []
 
         self._vectorizer = TextVectorization(
             max_tokens=self.data_cfg.stock_news_limit,
@@ -182,13 +180,13 @@ class Preprocessor:
         ] = self._get_train_val_test_split(events_df)
 
         np_input_train, np_gt_train = self._convert_to_tf_compliant_np_matrices(
-            events_train_df, gt_train_df, DatasetType.TRAIN_DS
+            events_train_df, gt_train_df
         )
         np_input_val, np_gt_val = self._convert_to_tf_compliant_np_matrices(
-            events_val_df, gt_val_df, DatasetType.VAL_DS
+            events_val_df, gt_val_df
         )
         np_input_test, np_gt_test = self._convert_to_tf_compliant_np_matrices(
-            events_test_df, gt_test_df, DatasetType.TEST_DS
+            events_test_df, gt_test_df
         )
 
         store_dataset_np_to_file_system(
@@ -201,14 +199,7 @@ class Preprocessor:
 
     def get_train_ds(self):
         """windowed tensorflow training dataset"""
-        assert dataset_np_has_been_build(
-            self.PATH_FOR_TRAIN_NP
-        ), "Train dataset numpy array has not yet been build"
-        return tf.data.Dataset.from_generator(
-            self._dataset_generator,
-            args=[self.PATH_FOR_TRAIN_NP],
-            output_signature=self.train_ds_generator_spec,
-        )
+        return self._get_tf_dataset(self.PATH_FOR_TRAIN_NP)
 
     def get_val_ds(self):
         """windowed tensorflow validation dataset"""
@@ -219,7 +210,39 @@ class Preprocessor:
         pass
 
     def _dataset_generator(self, base_ds_path):
-        print(base_ds_path)
+        [np_input_events, np_gt] = restore_dataset_df_from_file(base_ds_path.decode('utf-8'))
+
+        max_days = np_input_events.shape[0]
+        window_size = self.hp_cfg.sliding_window_size
+
+        # since range excludes the finishing mark we have to add + 1 at the end.
+        # Also, we have to stop when we extracted the last window which starts at max days - sliding window size.
+        # Therefore we have to subtract sliding window size from max days.
+        last_window_step = max_days - window_size + 1
+
+        for window_start in range(last_window_step):
+            input_window = np_input_events[window_start : window_start + window_size]
+            # TODO: investigate which one is the suited offset
+            gt = np_gt[window_start + window_size]
+
+            yield tf.convert_to_tensor(input_window, dtype=tf.float16), tf.convert_to_tensor(gt, dtype=tf.float16)
+
+    def _get_tf_dataset(self, base_ds_path):
+        assert dataset_np_has_been_build(
+            base_ds_path
+        ), "Train dataset numpy array has not yet been build"
+
+        # since the input spec of every dataset type is equal, we only have to set it once.
+        # the first ds method reaching this statement sets the dataset spec. We have to set it as late as possible,
+        # because every other method, that could set it, is governed by caching checks, could have not been executed.
+        if not self.dataset_spec:
+            self.dataset_spec = self._build_dataset_spec(base_ds_path)
+
+        return tf.data.Dataset.from_generator(
+            self._dataset_generator,
+            args=[base_ds_path],
+            output_signature=self.dataset_spec,
+        )
 
     def _prepare_word_embedding(self):
         if self._old_preprocessing_result_can_be_reused:
@@ -473,9 +496,7 @@ class Preprocessor:
             return old_cfg != self.train_cfg
         return True
 
-    def _convert_to_tf_compliant_np_matrices(
-        self, events_df, gt_df, dataset_type: DatasetType
-    ):
+    def _convert_to_tf_compliant_np_matrices(self, events_df, gt_df):
 
         sliding_window_length = self.hp_cfg.sliding_window_size
 
@@ -486,8 +507,6 @@ class Preprocessor:
             f"sliding window length ({sliding_window_length}) "
             f"does exceed date count ({dates_count}) in dataset."
         )
-
-        # build the input np matrix
 
         np_stock_matrix = events_df.values.reshape(dates_count, symbols_count, 1)
 
@@ -516,40 +535,25 @@ class Preprocessor:
             )
 
         np_stock_matrix = np.apply_along_axis(array_cast, axis=2, arr=np_stock_matrix)
-
-        # build the gt np matrix
         np_gt_trend_matrix = gt_df.values.reshape(dates_count, symbols_count, 1)
 
-        # we have to 'shift' the gt_tensor #{sliding_window_length} time steps 'back in time',
-        # so that np_gt_trend_matrix[0] yields the gt for the np_stock_matrix[0] first window,
-        # which otherwise would be at np_gt_trend_matrix[{sliding_window_length}]
-        np_gt_trend_matrix = np.roll(
-            np_gt_trend_matrix, shift=-(sliding_window_length - 1), axis=0
-        )
+        return [np_stock_matrix, np_gt_trend_matrix]
 
-        # The 'from_generator' method needs a spec desription of the tensors yielded by the generator method.
-        # This description can be crafted on the fly within this method.
+    def _build_dataset_spec(self, base_ds_path):
+        np_input_events, np_gt = restore_dataset_df_from_file(base_ds_path)
+
         input_spec = tf.TensorSpec(
             shape=(
-                sliding_window_length,
-                np_stock_matrix.shape[1],
-                np_stock_matrix.shape[2],
-                np_stock_matrix.shape[3],
-                np_stock_matrix.shape[4],
-            ),
-            dtype=tf.float16,
+                self.hp_cfg.sliding_window_size,
+                np_input_events.shape[1],
+                np_input_events.shape[2],
+                np_input_events.shape[3],
+                np_input_events.shape[4],
+            )
         )
 
         gt_spec = tf.TensorSpec(
-            shape=(1, np_gt_trend_matrix.shape[1], np_gt_trend_matrix.shape[2]),
-            dtype=tf.float16,
+            shape=(np_gt.shape[1], np_gt.shape[2]),
         )
 
-        if dataset_type is DatasetType.TRAIN_DS:
-            self.train_ds_generator_spec = (input_spec, gt_spec)
-        if dataset_type is DatasetType.VAL_DS:
-            self.val_ds_generator_spec = (input_spec, gt_spec)
-        if dataset_type is DatasetType.TEST_DS:
-            self.test_ds_generator_spec = (input_spec, gt_spec)
-
-        return [np_stock_matrix, np_gt_trend_matrix]
+        return input_spec, gt_spec
