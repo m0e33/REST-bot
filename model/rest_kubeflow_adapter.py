@@ -5,9 +5,6 @@ from typing import Union, List
 import numpy as np
 import tensorflow as tf
 from model.model import RESTNet
-import os
-import yaml
-from dataclasses import asdict
 
 from kubeflow_utils.kubeflow_serve import KubeflowServe
 from kubeflow_utils.metadata_config import MetadataConfig
@@ -17,38 +14,28 @@ from data.preprocesser import Preprocessor
 from configuration.configuration import TrainConfiguration, HyperParameterConfiguration
 from model.metrics import Metrics
 
-# tf.config.run_functions_eagerly(False)
 from utils.progess import Progress
 from utils.symbols import load_symbols
-from utils.gpu import find_free_gpu
 
 logger = logging.getLogger("kubeflow_adapter")
-
-os.environ["CUDA_VISIBLE_DEVICES"] = find_free_gpu()
 current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H꞉%M꞉%S")
 
 
 class KubeflowAdapter(KubeflowServe):
 
-    def __init__(self):
+    def __init__(self, num_gpus: int):
         super().__init__()
+        self.num_gpus = num_gpus
 
     def download_data_component(self, cloud_path: str, data_path: str):
         """Download data component"""
         self.download_data(cloud_path, data_path)
 
-    def read_input(self, train_cfg: TrainConfiguration, hp_cfg: HyperParameterConfiguration):
-        """Read input data and split it into train and test."""
+    @staticmethod
+    def create_datasets(data_cfg: DataConfiguration, train_cfg: TrainConfiguration, hp_cfg: HyperParameterConfiguration):
+        """Read input data and create train, validation and test datasets."""
 
         logger.info("Reading Symbols")
-
-        data_cfg = DataConfiguration(
-            symbols=load_symbols(10),
-            start="2021-01-01",
-            end="2021-08-01",
-            feedback_metrics=["open", "close", "high", "low", "vwap"],
-            stock_news_limit=200
-        )
 
         logger.info(f"Data configuration: {str(data_cfg)}")
 
@@ -88,89 +75,128 @@ class KubeflowAdapter(KubeflowServe):
         )
 
     def train_model(self, pipeline_run=False, data_path: str = "") -> TrainingResult:
+
         train_cfg = TrainConfiguration()
         hp_cfg = HyperParameterConfiguration()
-
+        data_cfg = DataConfiguration(
+            symbols=load_symbols(10),
+            start="2021-01-01",
+            end="2021-08-01",
+            feedback_metrics=["open", "close", "high", "low", "vwap"],
+            stock_news_limit=200
+        )
         logger.info(f"Train configuration: {str(train_cfg)}")
         logger.info(f"Hyperparameter configuration: {str(hp_cfg)}")
+        logger.info(f"Data configuration: {str(data_cfg)}")
 
-        train_ds, val_ds, test_ds = self.read_input(train_cfg, hp_cfg)
-
-        model = RESTNet(hp_cfg, train_cfg)
-
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
-        loss_object = tf.keras.losses.MeanSquaredError()
-
-        # Define our metrics
-        train_loss = tf.keras.metrics.Mean('train_loss', dtype=tf.float32)
-        test_loss = tf.keras.metrics.Mean('test_loss', dtype=tf.float32)
-
-        def train_step(model, optimizer, x_train, y_train):
-            with tf.GradientTape() as tape:
-                predictions = model(x_train, training=True)
-                loss = loss_object(y_train, predictions)
-            grads = tape.gradient(loss, model.trainable_variables)
-            optimizer.apply_gradients(zip(grads, model.trainable_variables))
-
-            train_loss(loss)
-
-        def test_step(model, x_test, y_test):
-            predictions = model(x_test)
-            loss = loss_object(y_test, predictions)
-
-            test_loss(loss)
-
+        # Define summary writers
         train_log_dir = f'logs/gradient_tape/{current_time}/train'
-        test_log_dir = f'logs/gradient_tape/{current_time}/test'
+        val_log_dir = f'logs/gradient_tape/{current_time}/val'
         train_summary_writer = tf.summary.create_file_writer(train_log_dir)
-        test_summary_writer = tf.summary.create_file_writer(test_log_dir)
+        test_summary_writer = tf.summary.create_file_writer(val_log_dir)
 
-        metrics = Metrics()
+        strategy = tf.distribute.MirroredStrategy()
+        logger.info(f'Number of devices: {strategy.num_replicas_in_sync}')
+        global_batch_size = train_cfg.batch_size * strategy.num_replicas_in_sync
+        logger.info(f"Global Batch Size: {global_batch_size}")
+
+        train_ds, val_ds, test_ds = self.create_datasets(data_cfg, train_cfg, hp_cfg)
+        train_dist_dataset = strategy.experimental_distribute_dataset(train_ds)
+        val_dist_dataset = strategy.experimental_distribute_dataset(val_ds)
+        test_dist_dataset = strategy.experimental_distribute_dataset(test_ds)
 
         logger.info("Starting training..")
         progress = Progress(hp_cfg.num_epochs)
 
-        train_ds_iter = iter(train_ds)
+        with strategy.scope():
+            model = RESTNet(hp_cfg, train_cfg)
+            optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
+            loss_object = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
+
+            def compute_loss(labels, predictions):
+                per_example_loss = loss_object(labels, predictions)
+                return tf.nn.compute_average_loss(per_example_loss, global_batch_size=global_batch_size)
+
+            train_loss = tf.keras.metrics.Mean('train_loss', dtype=tf.float32)
+            val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
+            test_loss = tf.keras.metrics.Mean('test_loss', dtype=tf.float32)
+
+        def train_step(inputs):
+            x, y = inputs
+            with tf.GradientTape() as tape:
+                predictions = model(x, training=True)
+                loss = compute_loss(y, predictions)
+            grads = tape.gradient(loss, model.trainable_variables)
+            optimizer.apply_gradients(zip(grads, model.trainable_variables))
+            train_loss.update_state(loss)
+            return loss
+
+        def val_step(inputs):
+            x, y = inputs
+            predictions = model(x)
+            loss = loss_object(y, predictions)
+            val_loss.update_state(loss)
+
+        def test_step(inputs):
+            x, y = inputs
+            predictions = model(x)
+            loss = loss_object(y, predictions)
+            test_loss.update_state(loss)
+
+        @tf.function
+        def distributed_train_step(dataset_inputs):
+            per_replica_loss = strategy.run(train_step, args=(dataset_inputs,))
+            return strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_loss, axis=None)
+
+        @tf.function
+        def distributed_val_step(dataset_inputs):
+            return strategy.run(val_step, args=(dataset_inputs,))
+
+        @tf.function
+        def distributed_test_step(dataset_inputs):
+            return strategy.run(test_step, args=(dataset_inputs,))
+
         for epoch in range(hp_cfg.num_epochs):
+            logger.info(f"Started Epoch {epoch+1} from {hp_cfg.num_epochs}")
+            start_time = time.time()
+
             if epoch == 10:
                 tf.profiler.experimental.start(f"logs/profiler/{current_time}")
 
-            start_time = time.time()
-            logger.info(f"Started Epoch {epoch+1} from {hp_cfg.num_epochs}")
+            # TRAIN LOOP
+            total_loss = 0.0
+            num_batches = 0
+            for inputs in train_dist_dataset:
+                total_loss += distributed_train_step(inputs)
+                num_batches += 1
+            train_loss = total_loss / num_batches
 
-            metrics.reset()
-
-            # Training loop
-            # with tf.profiler.experimental.Trace("Train", step_num=step):
-            for x_batch_train, y_batch_train in train_ds:
-                train_step(model, optimizer, x_batch_train, y_batch_train)
-
-            with train_summary_writer.as_default():
-                tf.summary.scalar('loss', train_loss.result(), step=epoch)
-
-            for x_batch_val, y_batch_val in val_ds:
-                test_step(model, x_batch_val, y_batch_val)
-
-            with test_summary_writer.as_default():
-                tf.summary.scalar('loss', test_loss.result(), step=epoch)
-
-            #metrics.log_final_state()
-            #metrics.print_epoch_state(epoch, logger)
-
-            step_duration = time.time() - start_time
-            with train_summary_writer.as_default():
-                tf.summary.scalar('step_duration', step_duration, step=epoch)
+            # VALIDATION LOOP
+            for inputs in val_dist_dataset:
+                distributed_val_step(inputs)
 
             if epoch == 20:
                 tf.profiler.experimental.stop()
 
+            step_duration = time.time() - start_time
             progress.step(step_duration)
             logger.info(progress.eta(epoch))
 
+            with train_summary_writer.as_default():
+                tf.summary.scalar('step_duration', step_duration, step=epoch)
+                tf.summary.scalar('train_loss', train_loss, step=epoch)
+                tf.summary.scalar('val_loss', val_loss.result(), step=epoch)
+
+            logger.info(f"Epoch {epoch}, loss: {train_loss}, val_loss: {val_loss.result()}")
+            val_loss.reset_states()
+
+        # TEST LOOP
+        for inputs in test_dist_dataset:
+            distributed_test_step(inputs)
 
         return TrainingResult(
             models=[],
-            evaluation=metrics.get_dictionary(),
+            evaluation={'test_loss': test_loss.result()},
             hyperparameters={}
         )
 
