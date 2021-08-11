@@ -2,7 +2,6 @@
 
 import logging
 import tensorflow as tf
-from tensorflow import keras
 from model.layers import (
     StockContextEncoder,
     StockDependentInfluence,
@@ -10,12 +9,13 @@ from model.layers import (
     SequenceEncoder
 )
 from configuration.configuration import HyperParameterConfiguration, TrainConfiguration
-from keras.layers import Dense
+from tensorflow.keras.layers import Dense
 
 
 logger = logging.getLogger("model instance")
 
-class RESTNet(keras.Model):
+
+class RESTNet(tf.keras.Model):
     """Architecture for stock trend prediction"""
 
     def __init__(self, hp_cfg: HyperParameterConfiguration, train_cfg: TrainConfiguration):
