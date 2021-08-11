@@ -21,7 +21,7 @@ class HyperParameterConfiguration:
 @dataclass # type: ignore
 class TrainConfiguration:
     """ Class for storing training parameters"""
-
+    distributed: bool = False
     val_split: float = 0.2
     test_split: float = 0.1
     batch_size: int = 8
