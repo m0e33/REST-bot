@@ -66,9 +66,9 @@ class DataStore:
 
         self._basic_data_info = {
             DataType.PRICE_DATA: PriceDataInfo(DataStore.STORAGE_PATH, self.api, self.data_cfg),
-            DataType.PRESS_DATA: PressDataInfo(DataStore.STORAGE_PATH, self.api, self.data_cfg.stock_news_limit),
+            DataType.PRESS_DATA: PressDataInfo(DataStore.STORAGE_PATH, self.api, self.data_cfg.stock_news_fetch_limit),
             DataType.STOCK_NEWS_DATA: StockNewsDataInfo(
-                DataStore.STORAGE_PATH, self.api, self.data_cfg.stock_news_limit
+                DataStore.STORAGE_PATH, self.api, self.data_cfg.stock_news_fetch_limit
             ),
         }
         self._relation_data_info = {

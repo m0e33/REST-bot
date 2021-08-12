@@ -11,6 +11,8 @@ from tensorflow import keras
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Embedding
 from tensorflow.keras.layers.experimental.preprocessing import TextVectorization
+from tensorflow.python.data import AUTOTUNE
+
 from data.data_store import DataStore
 from configuration.data_configuration import DataConfiguration
 from data.data_info import PriceDataInfo
@@ -116,7 +118,7 @@ class Preprocessor:
         self.dataset_spec = []
 
         self._vectorizer = TextVectorization(
-            max_tokens=self.data_cfg.stock_news_limit,
+            max_tokens=self.data_cfg.stock_news_fetch_limit,
             output_sequence_length=self.MAX_EVENT_LENGTH,
         )
         self.embedding_model: Sequential
@@ -197,21 +199,22 @@ class Preprocessor:
             np_input_test, np_gt_test, self.PATH_FOR_TEST_NP
         )
 
-    def get_train_ds(self):
+    def get_train_ds(self, global_batch_size):
         """windowed tensorflow training dataset"""
-        return self._get_tf_dataset(self.PATH_FOR_TRAIN_NP)
+        return self._get_tf_dataset(global_batch_size, self.PATH_FOR_TRAIN_NP)
 
-    def get_val_ds(self):
+    def get_val_ds(self, global_batch_size):
         """windowed tensorflow validation dataset"""
-        pass
+        return self._get_tf_dataset(global_batch_size, self.PATH_FOR_VAL_NP)
 
-    def get_test_ds(self):
+    def get_test_ds(self, global_batch_size):
         """windowed tensorflow test dataset"""
-        pass
+        return self._get_tf_dataset(global_batch_size, self.PATH_FOR_TEST_NP)
 
     def _dataset_generator(self, base_ds_path):
         [np_input_events, np_gt] = restore_dataset_df_from_file(base_ds_path.decode('utf-8'))
-
+        print(np_input_events.shape)
+        print(np_gt.shape)
         max_days = np_input_events.shape[0]
         window_size = self.hp_cfg.sliding_window_size
 
@@ -221,12 +224,14 @@ class Preprocessor:
         last_window_step = max_days - window_size + 1
 
         for window_start in range(last_window_step):
+            print("window start: " + str(window_start))
             input_window = np_input_events[window_start:window_start + window_size]
             gt = np_gt[window_start + window_size - 1]
-
+            print(input_window.shape)
+            print(gt.shape)
             yield tf.convert_to_tensor(input_window, dtype=tf.float16), tf.convert_to_tensor(gt, dtype=tf.float16)
 
-    def _get_tf_dataset(self, base_ds_path):
+    def _get_tf_dataset(self, global_batch_size, base_ds_path):
         assert dataset_np_has_been_build(
             base_ds_path
         ), "Train dataset numpy array has not yet been build"
@@ -241,7 +246,7 @@ class Preprocessor:
             self._dataset_generator,
             args=[base_ds_path],
             output_signature=self.dataset_spec,
-        )
+        ).batch(global_batch_size).prefetch(AUTOTUNE)
 
     def _prepare_word_embedding(self):
         if self._old_preprocessing_result_can_be_reused:
@@ -509,29 +514,26 @@ class Preprocessor:
 
         np_stock_matrix = events_df.values.reshape(dates_count, symbols_count, 1)
 
-        events_counts = []
-
-        def add_to_events_counts(list_input):
-            events_counts.append(len(list_input[0]))
-
-        np.apply_along_axis(add_to_events_counts, axis=2, arr=np_stock_matrix)
-
-        max_event_count = max(events_counts)
-
         # tensorflow datasets only takes np arrays with defined shape.
         # The third to last dimension of the np stock array (events count) is padded
         # to match the longest element in this dimension
 
+        max_event_count = self.data_cfg.events_per_day_limit
+
         def array_cast(list_input):
             unfold_event_list = np.asarray(list_input[0])
-            return np.pad(
-                unfold_event_list,
-                (
-                    (0, max_event_count - unfold_event_list.shape[0]),
-                    (0, 0),
-                    (0, 0),
-                ),
-            )
+            actual_event_count = unfold_event_list.shape[0]
+            if actual_event_count > max_event_count:
+                return unfold_event_list[:max_event_count]
+            else:
+                return np.pad(
+                    unfold_event_list,
+                    (
+                        (0, max_event_count - actual_event_count),
+                        (0, 0),
+                        (0, 0),
+                    ),
+                )
 
         np_stock_matrix = np.apply_along_axis(array_cast, axis=2, arr=np_stock_matrix)
         np_gt_trend_matrix = gt_df.values.reshape(dates_count, symbols_count, 1)

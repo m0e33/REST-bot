@@ -32,7 +32,7 @@ class KubeflowAdapter(KubeflowServe):
         self.download_data(cloud_path, data_path)
 
     @staticmethod
-    def create_datasets(data_cfg: DataConfiguration, train_cfg: TrainConfiguration, hp_cfg: HyperParameterConfiguration):
+    def create_datasets(data_cfg: DataConfiguration, train_cfg: TrainConfiguration, hp_cfg: HyperParameterConfiguration, global_batch_size):
         """Read input data and create train, validation and test datasets."""
 
         logger.info("Reading Symbols")
@@ -50,9 +50,9 @@ class KubeflowAdapter(KubeflowServe):
         logger.info("Finished Preprocessing Data")
 
         logger.info("Build Datasets")
-        train_ds = prepro.get_train_ds()
-        val_ds = prepro.get_val_ds()
-        test_ds = prepro.get_test_ds()
+        train_ds = prepro.get_train_ds(global_batch_size)
+        val_ds = prepro.get_val_ds(global_batch_size)
+        test_ds = prepro.get_test_ds(global_batch_size)
         logger.info("Finished bulding Datasets")
 
         logger.info("Data is ready")
@@ -77,13 +77,20 @@ class KubeflowAdapter(KubeflowServe):
     def train_model(self, pipeline_run=False, data_path: str = "") -> TrainingResult:
 
         train_cfg = TrainConfiguration()
+
+        strategy = tf.distribute.MirroredStrategy()
+        logger.info(f'Number of devices: {strategy.num_replicas_in_sync}')
+        global_batch_size = train_cfg.batch_size * strategy.num_replicas_in_sync
+        logger.info(f"Global Batch Size: {global_batch_size}")
+
         hp_cfg = HyperParameterConfiguration()
         data_cfg = DataConfiguration(
-            symbols=load_symbols(10),
+            symbols=load_symbols(4),
             start="2021-01-01",
             end="2021-08-01",
             feedback_metrics=["open", "close", "high", "low", "vwap"],
-            stock_news_limit=200
+            stock_news_fetch_limit=200,
+            events_per_day_limit=10
         )
         logger.info(f"Train configuration: {str(train_cfg)}")
         logger.info(f"Hyperparameter configuration: {str(hp_cfg)}")
@@ -95,12 +102,7 @@ class KubeflowAdapter(KubeflowServe):
         train_summary_writer = tf.summary.create_file_writer(train_log_dir)
         test_summary_writer = tf.summary.create_file_writer(val_log_dir)
 
-        strategy = tf.distribute.MirroredStrategy()
-        logger.info(f'Number of devices: {strategy.num_replicas_in_sync}')
-        global_batch_size = train_cfg.batch_size * strategy.num_replicas_in_sync
-        logger.info(f"Global Batch Size: {global_batch_size}")
-
-        train_ds, val_ds, test_ds = self.create_datasets(data_cfg, train_cfg, hp_cfg)
+        train_ds, val_ds, test_ds = self.create_datasets(data_cfg, train_cfg, hp_cfg, global_batch_size)
         train_dist_dataset = strategy.experimental_distribute_dataset(train_ds)
         val_dist_dataset = strategy.experimental_distribute_dataset(val_ds)
         test_dist_dataset = strategy.experimental_distribute_dataset(test_ds)

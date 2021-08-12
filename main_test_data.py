@@ -10,7 +10,7 @@ if __name__ == "__main__":
         start="2021-02-01",
         end="2021-04-06",
         feedback_metrics=["open", "close", "high", "low", "vwap"],
-        stock_news_limit=200
+        stock_news_fetch_limit=200
     )
 
     train_cfg = TrainConfiguration()
