@@ -1,9 +1,13 @@
-from pipeline import compile_run_pipeline
+import argparse
+import os
+
 from model.rest_kubeflow_adapter import KubeflowAdapter
 import logging
 
+from utils.gpu import get_cuda_visible_devices
+
 format = '([%(name)s] %(levelname)s %(asctime)s) -- %(message)s'
-logger = logging.basicConfig(filename='log.log', level=logging.DEBUG, format=format, datefmt='%H:%M:%S', force=True)
+logging.basicConfig(filename='log.log', level=logging.DEBUG, format=format, datefmt='%H:%M:%S', force=True)
 
 # set up console logging
 console = logging.StreamHandler()
@@ -14,6 +18,16 @@ console.setFormatter(formatter)
 logger = logging.getLogger()
 logger.addHandler(console)
 
+parser = argparse.ArgumentParser()
+parser.add_argument('-g', '--gpus', nargs='+', default='auto')
+parser.add_argument('-n', '--n_gpus', type=int, default=-1)
+args = parser.parse_args()
+
+cuda_visible_devices = get_cuda_visible_devices(args.gpus, args.n_gpus)
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+os.environ["CUDA_VISIBLE_DEVICES"] = cuda_visible_devices
+logger.info(f'SET CUDA_VISIBLE_DEVICES {cuda_visible_devices}')
+
 if __name__ == '__main__':
 
     logger.info(
@@ -23,8 +37,8 @@ if __name__ == '__main__':
         "*                                               *\n"
         "*************************************************\n"
     )
-
-    model = KubeflowAdapter()
+    num_gpus = len(args.gpus)
+    model = KubeflowAdapter(num_gpus)
 
     # model.create_bucket()
     # model.upload_data('storage', 'data_raw')

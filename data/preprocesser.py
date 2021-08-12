@@ -17,6 +17,7 @@ from configuration.configuration import TrainConfiguration, HyperParameterConfig
 
 logger = logging.getLogger("preprocessor")
 
+
 class EventType(Enum):
     """To distinguish between event types for a stock"""
 
@@ -94,6 +95,7 @@ class Preprocessor:
     EMBEDDING_DIM = 300
     MAX_EVENT_LENGTH = 50
     PATH_TO_GLOVE_FILE = "data/assets/glove.6B.300d.txt"
+    DATASET_CACHE_PATH = "data/datasets"
 
     def build_events_data_with_gt(self):
         """builds event data"""
@@ -128,11 +130,7 @@ class Preprocessor:
         # The grouping with gt_trend is unnecessary here, because it holds the same grouping
         # information as 'date' and 'symbol' combined. We have to list it here in order
         # to copy it over to the new events_df dataframe
-        events_df = (
-            events_df.groupby(["date", "symbol", "gt_trend"])["event"]
-                .apply(list)
-                .reset_index()
-        )
+        events_df = events_df.groupby(["date", "symbol", "gt_trend"])["event"].apply(list).reset_index()
         events_df.set_index(["date", "symbol"], inplace=True)
 
         # events_df.index = events_df.index.set_levels(
@@ -143,21 +141,15 @@ class Preprocessor:
 
     def get_val_ds(self):
         """windowed tensorflow validation dataset"""
-        return self._get_tf_dataset(
-            self._events_val_df, self._gt_val_df, DatasetType.VAL_DS
-        )
+        return self._get_tf_dataset(self._events_val_df, self._gt_val_df, DatasetType.VAL_DS)
 
     def get_train_ds(self):
         """windowed tensorflow training dataset"""
-        return self._get_tf_dataset(
-            self._events_train_df, self._gt_train_df, DatasetType.TRAIN_DS
-        )
+        return self._get_tf_dataset(self._events_train_df, self._gt_train_df, DatasetType.TRAIN_DS)
 
     def get_test_ds(self):
         """windowed tensorflow test dataset"""
-        return self._get_tf_dataset(
-            self._events_test_df, self._gt_test_df, DatasetType.TEST_DS
-        )
+        return self._get_tf_dataset(self._events_test_df, self._gt_test_df, DatasetType.TEST_DS)
 
     def _prepare_word_embedding(self):
         if self._old_preprocessing_result_can_be_reused:
@@ -183,14 +175,12 @@ class Preprocessor:
 
     def _get_tf_dataset(self, events_df, gt_df, ds_type: DatasetType):
         """Return windowed dataset based on events_df and ground truth"""
+        dataset_path = f'{self.DATASET_CACHE_PATH}/{ds_type.value}'
 
         if self._old_preprocessing_result_can_be_reused:
-            if ds_type is DatasetType.TRAIN_DS:
-                return tf.data.experimental.load("train_ds")
-            if ds_type is DatasetType.VAL_DS:
-                return tf.data.experimental.load("val_ds")
-            if ds_type is DatasetType.TEST_DS:
-                return tf.data.experimental.load("test_ds")
+            with open(tf_data_path + '/element_spec', 'rb') as in_:
+                es = pickle.load(in_)
+            return tf.data.experimental.load(dataset_path, es)
 
         sliding_window_length = self.hp_cfg.sliding_window_size
 
@@ -256,13 +246,13 @@ class Preprocessor:
             batch_size=self.train_cfg.batch_size,
         )
 
-        # cache datasets
-        if ds_type is DatasetType.TRAIN_DS:
-            tf.data.experimental.save(tf_ds, "train_ds")
-        if ds_type is DatasetType.VAL_DS:
-            tf.data.experimental.save(tf_ds, "val_ds")
-        if ds_type is DatasetType.TEST_DS:
-            tf.data.experimental.save(tf_ds, "test_ds")
+        # Use preprocessing and maybe rebuild pipeline using .window() .batch()
+        # Also when using .load currently the fancy pipeline things dont get used.
+        tf_ds = tf_ds.cache(dataset_path).prefetch(tf.data.AUTOTUNE)
+        # save dataset to disk and the element_spec to disk for future loading
+        tf.data.experimental.save(tf_ds, dataset_path)
+        with open(dataset_path + '/element_spec',  'wb') as out_:
+            pickle.dump(ds.element_spec, out_)
 
         return tf_ds
 
@@ -339,9 +329,7 @@ class Preprocessor:
 
         indicator_next_day = symbol_feedback_df.shift(-1).replace(np.nan, 0)
         indicator_current_day = symbol_feedback_df
-        symbol_feedback_df = (
-                                     indicator_next_day - indicator_current_day
-                             ) / indicator_current_day
+        symbol_feedback_df = (indicator_next_day - indicator_current_day) / indicator_current_day
 
         symbol_feedback_df = symbol_feedback_df.join(symbol_price_df["date"])
 
@@ -443,7 +431,7 @@ class Preprocessor:
 
         # setup embedding index
         embeddings_index = {}
-        with open(self.PATH_TO_GLOVE_FILE) as file:
+        with open(self.PATH_TO_GLOVE_FILE, encoding="utf8") as file:
             for line in file:
                 word, coefs = line.split(maxsplit=1)
                 coefs = np.fromstring(coefs, "f", sep=" ")
@@ -470,15 +458,9 @@ class Preprocessor:
         return embedding_matrix
 
     def _check_reusability_of_old_preprocessing(self):
-        has_been_cached = bool(
-            os.path.isdir("train_ds")
-            and os.path.isdir("test_ds")
-            and os.path.isdir("val_ds")
-        )
-
         new_configs = self._hp_cfg_has_changed() or self._train_cfg_has_changed()
 
-        return has_been_cached and not new_configs and self.data_store.old_data_can_be_reused
+        return not new_configs and self.data_store.old_data_can_be_reused
 
     def _hp_cfg_has_changed(self):
         if hp_cfg_is_cached():

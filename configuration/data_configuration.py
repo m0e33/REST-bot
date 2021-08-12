@@ -23,13 +23,13 @@ class DataConfiguration:
 
     # pylint: disable=too-many-instance-attributes
     def __init__(
-        self,
-        symbols: List[str],
-        start: str,
-        end: str,
-        feedback_metrics: List[str],
-        gt_metric: GroundTruthMetric = GroundTruthMetric.CLOSE,
-        stock_news_limit: int = 500
+            self,
+            symbols: List[str],
+            start: str,
+            end: str,
+            feedback_metrics: List[str],
+            gt_metric: GroundTruthMetric = GroundTruthMetric.CLOSE,
+            stock_news_limit: int = 500
     ) -> None:
         self.start_str = start
         self.start = datetime.strptime(start, self.DATE_FORMAT).date()
@@ -63,7 +63,8 @@ class DataConfiguration:
             and self.stock_news_limit == other.stock_news_limit)
 
     def __repr__(self):
-        return str({attr:getattr(self, attr) for attr in dir(self) if not callable(getattr(self, attr)) and not attr.startswith("__")})
+        return str({attr: getattr(self, attr) for attr in dir(self) if
+                    not callable(getattr(self, attr)) and not attr.startswith("__")})
 
 
 def serialize_data_cfg(cfg: DataConfiguration):

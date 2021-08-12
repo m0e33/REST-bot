@@ -81,7 +81,7 @@ MarkupSafe==2.0.1
 matplotlib-inline==0.1.2
 minio==7.1.0
 mistune==0.8.4
-ml-metadata==0.21.1
+ml-metadata==1.1.0
 msrest==0.6.21
 nbclient==0.5.3
 nbconvert==6.1.0
