@@ -178,7 +178,9 @@ class Preprocessor:
         dataset_path = f'{self.DATASET_CACHE_PATH}/{ds_type.value}'
 
         if self._old_preprocessing_result_can_be_reused:
-            return tf.data.experimental.load(dataset_path)
+            with open(tf_data_path + '/element_spec', 'rb') as in_:
+                es = pickle.load(in_)
+            return tf.data.experimental.load(dataset_path, es)
 
         sliding_window_length = self.hp_cfg.sliding_window_size
 
@@ -247,8 +249,10 @@ class Preprocessor:
         # Use preprocessing and maybe rebuild pipeline using .window() .batch()
         # Also when using .load currently the fancy pipeline things dont get used.
         tf_ds = tf_ds.cache(dataset_path).prefetch(tf.data.AUTOTUNE)
-        # save dataset to disk
+        # save dataset to disk and the element_spec to disk for future loading
         tf.data.experimental.save(tf_ds, dataset_path)
+        with open(dataset_path + '/element_spec',  'wb') as out_:
+            pickle.dump(ds.element_spec, out_)
 
         return tf_ds
 
