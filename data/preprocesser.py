@@ -221,9 +221,8 @@ class Preprocessor:
         last_window_step = max_days - window_size + 1
 
         for window_start in range(last_window_step):
-            input_window = np_input_events[window_start : window_start + window_size]
-            # TODO: investigate which one is the suited offset
-            gt = np_gt[window_start + window_size]
+            input_window = np_input_events[window_start:window_start + window_size]
+            gt = np_gt[window_start + window_size - 1]
 
             yield tf.convert_to_tensor(input_window, dtype=tf.float16), tf.convert_to_tensor(gt, dtype=tf.float16)
 
