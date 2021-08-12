@@ -51,6 +51,7 @@ class TypeSpecificEncoder(keras.layers.Layer):
             fn_output_signature=tf.TensorSpec(shape=output_shape),
         )
 
+    # @tf.function
     def _attention_map(self, event):
         if tf.math.count_nonzero(event) == 0:
             return tf.zeros(shape=self._event_embedding_shape)

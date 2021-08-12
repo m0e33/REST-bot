@@ -41,8 +41,8 @@ symbols:
     q: paypal
   PG:
     q: procter & gamble
-  RHHBY:
-    q: roche
+  #RHHBY:
+  #  q: roche
   DIS:
     q: walt disney
   ASML:
