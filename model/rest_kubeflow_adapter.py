@@ -1,12 +1,10 @@
+import datetime
 import logging
 import time
 from typing import Union, List
 import numpy as np
 import tensorflow as tf
 from model.model import RESTNet
-import os
-import yaml
-from dataclasses import asdict
 
 from kubeflow_utils.kubeflow_serve import KubeflowServe
 from kubeflow_utils.metadata_config import MetadataConfig
@@ -16,40 +14,28 @@ from data.preprocesser import Preprocessor
 from configuration.configuration import TrainConfiguration, HyperParameterConfiguration
 from model.metrics import Metrics
 
-# tf.config.run_functions_eagerly(False)
+from utils.progess import Progress
+from utils.symbols import load_symbols
 
 logger = logging.getLogger("kubeflow_adapter")
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
-def _load_symbols():
-    with open("symbols.yaml", 'r') as stream:
-        symbols = yaml.safe_load(stream)
-    return symbols
+current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H꞉%M꞉%S")
 
 
 class KubeflowAdapter(KubeflowServe):
 
-    def __init__(self):
+    def __init__(self, num_gpus: int):
         super().__init__()
+        self.num_gpus = num_gpus
 
     def download_data_component(self, cloud_path: str, data_path: str):
         """Download data component"""
         self.download_data(cloud_path, data_path)
 
-    def read_input(self, train_cfg: TrainConfiguration, hp_cfg: HyperParameterConfiguration):
-        """Read input data and split it into train and test."""
+    @staticmethod
+    def create_datasets(data_cfg: DataConfiguration, train_cfg: TrainConfiguration, hp_cfg: HyperParameterConfiguration):
+        """Read input data and create train, validation and test datasets."""
 
         logger.info("Reading Symbols")
-        symbols = list(_load_symbols()['symbols'].keys())[:4]
-
-        data_cfg = DataConfiguration(
-            symbols=symbols,
-            start="2021-02-01",
-            end="2021-04-06",
-            feedback_metrics=["open", "close", "high", "low", "vwap"],
-            stock_news_limit=200
-        )
 
         logger.info(f"Data configuration: {str(data_cfg)}")
 
@@ -89,72 +75,128 @@ class KubeflowAdapter(KubeflowServe):
         )
 
     def train_model(self, pipeline_run=False, data_path: str = "") -> TrainingResult:
+
         train_cfg = TrainConfiguration()
         hp_cfg = HyperParameterConfiguration()
-
+        data_cfg = DataConfiguration(
+            symbols=load_symbols(10),
+            start="2021-01-01",
+            end="2021-08-01",
+            feedback_metrics=["open", "close", "high", "low", "vwap"],
+            stock_news_limit=200
+        )
         logger.info(f"Train configuration: {str(train_cfg)}")
         logger.info(f"Hyperparameter configuration: {str(hp_cfg)}")
+        logger.info(f"Data configuration: {str(data_cfg)}")
 
-        train_ds, val_ds, test_ds = self.read_input(train_cfg, hp_cfg)
+        # Define summary writers
+        train_log_dir = f'logs/gradient_tape/{current_time}/train'
+        val_log_dir = f'logs/gradient_tape/{current_time}/val'
+        train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+        test_summary_writer = tf.summary.create_file_writer(val_log_dir)
 
-        model = RESTNet(hp_cfg, train_cfg)
+        strategy = tf.distribute.MirroredStrategy()
+        logger.info(f'Number of devices: {strategy.num_replicas_in_sync}')
+        global_batch_size = train_cfg.batch_size * strategy.num_replicas_in_sync
+        logger.info(f"Global Batch Size: {global_batch_size}")
 
-        num_epochs = 40
-        logger.info(f"Run for {num_epochs} epochs")
-
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
-        loss_object = tf.keras.losses.MeanAbsoluteError()
-
-        def loss(model, x, y, training=False):
-            # training=training is needed only if there are layers with different
-            # behavior during training versus inference (e.g. Dropout).
-            y_predict= model(x, training=training)
-
-            return loss_object(y_true=y, y_pred=y_predict), y_predict
-
-        def grad(model, inputs, targets):
-            with tf.GradientTape() as tape:
-                loss_value, y_predict = loss(model, inputs, targets)
-            return loss_value, tape.gradient(loss_value, model.trainable_variables), y_predict
-
-        metrics = Metrics()
-
-        for example_input, example_label in train_ds.take(1):
-            loss_value, y_predict = loss(model, example_input, example_label)
-            logging.info("Loss test: {}".format(loss_value.numpy))
+        train_ds, val_ds, test_ds = self.create_datasets(data_cfg, train_cfg, hp_cfg)
+        train_dist_dataset = strategy.experimental_distribute_dataset(train_ds)
+        val_dist_dataset = strategy.experimental_distribute_dataset(val_ds)
+        test_dist_dataset = strategy.experimental_distribute_dataset(test_ds)
 
         logger.info("Starting training..")
+        progress = Progress(hp_cfg.num_epochs)
 
-        for epoch in range(num_epochs):
-            start_time = time.time()
-            logger.info(f"Started Epoch {epoch+1} from {num_epochs}")
+        with strategy.scope():
+            model = RESTNet(hp_cfg, train_cfg)
+            optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
+            loss_object = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
 
-            metrics.reset()
+            def compute_loss(labels, predictions):
+                per_example_loss = loss_object(labels, predictions)
+                return tf.nn.compute_average_loss(per_example_loss, global_batch_size=global_batch_size)
 
-            # Training loop - using batches of 32
-            for x_batch_train, y_batch_train in train_ds:
-                # Optimize the model
-                loss_value, grads, y_predict = grad(model, x_batch_train, y_batch_train)
+            train_loss = tf.keras.metrics.Mean('train_loss', dtype=tf.float32)
+            val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
+            test_loss = tf.keras.metrics.Mean('test_loss', dtype=tf.float32)
+
+            def train_step(inputs):
+                x, y = inputs
+                with tf.GradientTape() as tape:
+                    predictions = model(x, training=True)
+                    loss = compute_loss(y, predictions)
+                grads = tape.gradient(loss, model.trainable_variables)
                 optimizer.apply_gradients(zip(grads, model.trainable_variables))
-                logging.info(loss_value)
-                # Track progress
-                metrics.update_train_metrics(loss_value, y_batch_train, y_predict)
+                train_loss.update_state(loss)
+                return loss
 
-            # End epoch
+            def val_step(inputs):
+                x, y = inputs
+                predictions = model(x)
+                loss = loss_object(y, predictions)
+                val_loss.update_state(loss)
 
-            for x_batch_val, y_batch_val in val_ds:
-                loss_value, val_predict = loss(model, x_batch_val, y_batch_val)
-                # Update val metrics
-                metrics.update_val_metric(loss_value, y_batch_val, val_predict)
+            def test_step(inputs):
+                x, y = inputs
+                predictions = model(x)
+                loss = loss_object(y, predictions)
+                test_loss.update_state(loss)
 
-            metrics.log_final_state()
-            metrics.print_epoch_state(epoch, logger)
+        @tf.function
+        def distributed_train_step(dataset_inputs):
+            per_replica_loss = strategy.run(train_step, args=(dataset_inputs,))
+            return strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_loss, axis=None)
 
-            logger.info("Time taken: %.2fs" % (time.time() - start_time))
+        @tf.function
+        def distributed_val_step(dataset_inputs):
+            return strategy.run(val_step, args=(dataset_inputs,))
+
+        @tf.function
+        def distributed_test_step(dataset_inputs):
+            return strategy.run(test_step, args=(dataset_inputs,))
+
+        for epoch in range(hp_cfg.num_epochs):
+            logger.info(f"Started Epoch {epoch+1} from {hp_cfg.num_epochs}")
+            start_time = time.time()
+
+            if epoch == 10:
+                tf.profiler.experimental.start(f"logs/profiler/{current_time}")
+
+            # TRAIN LOOP
+            total_loss = 0.0
+            num_batches = 0
+            for inputs in train_dist_dataset:
+                total_loss += distributed_train_step(inputs)
+                num_batches += 1
+            train_loss = total_loss / num_batches
+
+            # VALIDATION LOOP
+            for inputs in val_dist_dataset:
+                distributed_val_step(inputs)
+
+            if epoch == 20:
+                tf.profiler.experimental.stop()
+
+            step_duration = time.time() - start_time
+            progress.step(step_duration)
+            logger.info(progress.eta(epoch))
+
+            with train_summary_writer.as_default():
+                tf.summary.scalar('step_duration', step_duration, step=epoch)
+                tf.summary.scalar('train_loss', train_loss, step=epoch)
+                tf.summary.scalar('val_loss', val_loss.result(), step=epoch)
+
+            logger.info(f"Epoch {epoch}, loss: {train_loss}, val_loss: {val_loss.result()}")
+            val_loss.reset_states()
+
+        # TEST LOOP
+        for inputs in test_dist_dataset:
+            distributed_test_step(inputs)
 
         return TrainingResult(
             models=[],
-            evaluation=metrics.get_dictionary(),
+            evaluation={'test_loss': test_loss.result()},
             hyperparameters={}
         )
 
