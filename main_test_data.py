@@ -6,7 +6,7 @@ from configuration.configuration import TrainConfiguration, HyperParameterConfig
 
 if __name__ == "__main__":
     data_cfg = DataConfiguration(
-        symbols=["AAPL", "ACN", "CDW", "NFLX"],
+        symbols=["TSLA", "NFLX", "MSFT", "AMZN"],
         start="2021-02-01",
         end="2021-04-06",
         feedback_metrics=["open", "close", "high", "low", "vwap"],
@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     ds = prepro.get_train_ds()
 
-    for example_inputs, example_labels in ds.take(1):
-        print(f'Inputs shape (dates, symboles, events, events words, word embeddings): '
+    for example_inputs, example_labels in ds.take(2):
+        print(f'Inputs shape (dates, symbols, events, events words, word embeddings): '
               f'{example_inputs.shape}')
         print(f'Labels shape (batch, symbols, gt_trend): {example_labels.shape}')
