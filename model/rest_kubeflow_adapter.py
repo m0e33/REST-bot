@@ -198,7 +198,7 @@ class KubeflowAdapter(KubeflowServe):
 
         return TrainingResult(
             models=[],
-            evaluation={'test_loss': test_loss.result()},
+            evaluation={'test_loss': test_loss.result(), 'val_loss': val_loss.result(), 'train_loss': train_loss.result()},
             hyperparameters={}
         )
 
