@@ -2,7 +2,6 @@
 
 import logging
 import tensorflow as tf
-from tensorflow import keras
 from model.layers import (
     StockContextEncoder,
     StockDependentInfluence,
@@ -10,12 +9,13 @@ from model.layers import (
     SequenceEncoder
 )
 from configuration.configuration import HyperParameterConfiguration, TrainConfiguration
-from keras.layers import Dense
+from tensorflow.keras.layers import Dense
 
 
 logger = logging.getLogger("model instance")
 
-class RESTNet(keras.Model):
+
+class RESTNet(tf.keras.Model):
     """Architecture for stock trend prediction"""
 
     def __init__(self, hp_cfg: HyperParameterConfiguration, train_cfg: TrainConfiguration):
@@ -36,11 +36,12 @@ class RESTNet(keras.Model):
         self.stock_dependent_influence = StockDependentInfluence()
         self.stock_trend_forecaster = Dense(1)
 
-    # @tf.function
+    @tf.function
     def call(self, inputs):
         logger.debug("Starting forward pass of batch")
         return tf.map_fn(self._call, inputs, parallel_iterations=self.train_cfg.batch_size)
 
+    @tf.function
     def _call(self, inputs):
         # since we have attached the events feedback to the event embedding
         # we have to extract it here again for the tse to work properly

@@ -63,6 +63,5 @@ joblib
 numpy
 kafka-python
 pandas
-scikit-learn
 msrestazure
 tqdm

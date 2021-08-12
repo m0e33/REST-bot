@@ -3,14 +3,9 @@
 from typing import List
 
 
-def build_holder_relation(symbols: List[str], api_call, fields, threshold=1):
+def build_holder_relation(symbols: List[str], api_call, threshold=1):
     """Parses all holder information (institutional, mutual) to construct a relation matrix"""
-    companies = list(
-        filter(
-            None,
-            [api_call(symbol) for symbol in fields],
-        )
-    )
+    companies = [api_call(symbol) for symbol in symbols]
 
     companies_sorted_and_stripped = [
         sorted(holders, key=lambda holder: int(holder["shares"]), reverse=True)[:10]
@@ -23,8 +18,7 @@ def build_holder_relation(symbols: List[str], api_call, fields, threshold=1):
 
     holder_data = []
     for symbol in symbols:
-        holder_dict = {}
-        holder_dict["symbol"] = symbol
+        holder_dict = {"symbol": symbol}
         for company, holders in company_holders.items():
             # Threshold to make the relation a bit more meaningful
             if len(set(holders) & set(company_holders[symbol])) > threshold:
