@@ -1,6 +1,8 @@
 """Preprocess data for model usage"""
 import logging
+import pickle
 from enum import Enum
+from pathlib import Path
 import os.path
 import pandas as pd
 import numpy as np
@@ -12,8 +14,16 @@ from tensorflow.keras.layers.experimental.preprocessing import TextVectorization
 from data.data_store import DataStore
 from configuration.data_configuration import DataConfiguration
 from data.data_info import PriceDataInfo
-from configuration.configuration import TrainConfiguration, HyperParameterConfiguration, hp_cfg_is_cached, \
-    deserialize_hp_cfg, serialize_hp_cfg, train_cfg_is_cached, deserialize_train_cfg, serialize_train_cfg
+from configuration.configuration import (
+    TrainConfiguration,
+    HyperParameterConfiguration,
+    hp_cfg_is_cached,
+    deserialize_hp_cfg,
+    serialize_hp_cfg,
+    train_cfg_is_cached,
+    deserialize_train_cfg,
+    serialize_train_cfg,
+)
 
 logger = logging.getLogger("preprocessor")
 
@@ -48,45 +58,66 @@ def _preprocess_event_df(symbol_df, event_type):
     return symbol_df.drop(["title", "text"], axis=1)
 
 
+def store_dataset_np_to_file_system(events_df, gt_df, base_dataset_path):
+    Path(base_dataset_path).mkdir(parents=True, exist_ok=True)
+    pickle.dump(events_df, open(base_dataset_path + "events.p", "wb"))
+    pickle.dump(gt_df, open(base_dataset_path + "gt.p", "wb"))
+
+
+def restore_dataset_df_from_file(base_dataset_path):
+    events_df = pickle.load(open(base_dataset_path + "events.p", "rb"))
+    gt_df = pickle.load(open(base_dataset_path + "gt.p", "rb"))
+
+    return events_df, gt_df
+
+
+def dataset_np_has_been_build(base_path_to_ds):
+    return os.path.isfile(base_path_to_ds + "events.p") and os.path.isfile(
+        base_path_to_ds + "gt.p"
+    )
+
+
 class Preprocessor:
+
     """Preprocess data for model usage"""
 
     # pylint: disable=too-many-instance-attributes
+
     def __init__(
-            self,
-            data_store: DataStore,
-            data_cfg: DataConfiguration,
-            train_cfg: TrainConfiguration,
-            hp_cfg: HyperParameterConfiguration
+        self,
+        data_store: DataStore,
+        data_cfg: DataConfiguration,
+        train_cfg: TrainConfiguration,
+        hp_cfg: HyperParameterConfiguration,
     ):
         self.data_store = data_store
         self.data_cfg = data_cfg
 
         assert (
-                len(set(self.data_cfg.feedback_metrics) - set(PriceDataInfo.fields)) == 0
+            len(set(self.data_cfg.feedback_metrics) - set(PriceDataInfo.fields)) == 0
         ), "API data price fields do not contain all fields that are configured as feedback metrics"
 
         self.train_cfg = train_cfg
         self.hp_cfg = hp_cfg
 
         # advanced caching mechanism needs to safe new configurations
-        self._old_preprocessing_result_can_be_reused = self._check_reusability_of_old_preprocessing()
-        logger.info("Preprocessing result reusable: " + str(self._old_preprocessing_result_can_be_reused))
+        self._old_preprocessing_result_can_be_reused = (
+            self._check_reusability_of_old_preprocessing()
+        )
+        logger.info(
+            "Preprocessing result reusable: "
+            + str(self._old_preprocessing_result_can_be_reused)
+        )
         serialize_hp_cfg(self.hp_cfg)
         serialize_train_cfg(self.train_cfg)
 
         self.date_df = self._build_date_dataframe()
 
-        # Predefine all dataframes for linter._.
-        self._events_train_df = pd.DataFrame()
-        self._gt_train_df = pd.DataFrame()
-        self._events_val_df = pd.DataFrame()
-        self._gt_val_df = pd.DataFrame()
-        self._events_test_df = pd.DataFrame()
-        self._gt_test_df = pd.DataFrame()
+        self.dataset_spec = []
 
         self._vectorizer = TextVectorization(
-            max_tokens=self.data_cfg.stock_news_limit, output_sequence_length=self.MAX_EVENT_LENGTH
+            max_tokens=self.data_cfg.stock_news_limit,
+            output_sequence_length=self.MAX_EVENT_LENGTH,
         )
         self.embedding_model: Sequential
         self._prepare_word_embedding()
@@ -95,7 +126,9 @@ class Preprocessor:
     EMBEDDING_DIM = 300
     MAX_EVENT_LENGTH = 50
     PATH_TO_GLOVE_FILE = "data/assets/glove.6B.300d.txt"
-    DATASET_CACHE_PATH = "data/datasets"
+    PATH_FOR_TRAIN_NP = "data/datasets/train/"
+    PATH_FOR_VAL_NP = "data/datasets/val/"
+    PATH_FOR_TEST_NP = "data/datasets/test/"
 
     def build_events_data_with_gt(self):
         """builds event data"""
@@ -130,26 +163,85 @@ class Preprocessor:
         # The grouping with gt_trend is unnecessary here, because it holds the same grouping
         # information as 'date' and 'symbol' combined. We have to list it here in order
         # to copy it over to the new events_df dataframe
-        events_df = events_df.groupby(["date", "symbol", "gt_trend"])["event"].apply(list).reset_index()
+        events_df = (
+            events_df.groupby(["date", "symbol", "gt_trend"])["event"]
+            .apply(list)
+            .reset_index()
+        )
         events_df.set_index(["date", "symbol"], inplace=True)
 
-        # events_df.index = events_df.index.set_levels(
-        #     events_df.index.levels[0], level=0
-        # )
+        [
+            events_train_df,
+            gt_train_df,
+            events_val_df,
+            gt_val_df,
+            events_test_df,
+            gt_test_df,
+        ] = self._get_train_val_test_split(events_df)
 
-        self._set_train_val_test_split(events_df)
+        np_input_train, np_gt_train = self._convert_to_tf_compliant_np_matrices(
+            events_train_df, gt_train_df
+        )
+        np_input_val, np_gt_val = self._convert_to_tf_compliant_np_matrices(
+            events_val_df, gt_val_df
+        )
+        np_input_test, np_gt_test = self._convert_to_tf_compliant_np_matrices(
+            events_test_df, gt_test_df
+        )
 
-    def get_val_ds(self):
-        """windowed tensorflow validation dataset"""
-        return self._get_tf_dataset(self._events_val_df, self._gt_val_df, DatasetType.VAL_DS)
+        store_dataset_np_to_file_system(
+            np_input_train, np_gt_train, self.PATH_FOR_TRAIN_NP
+        )
+        store_dataset_np_to_file_system(np_input_val, np_gt_val, self.PATH_FOR_VAL_NP)
+        store_dataset_np_to_file_system(
+            np_input_test, np_gt_test, self.PATH_FOR_TEST_NP
+        )
 
     def get_train_ds(self):
         """windowed tensorflow training dataset"""
-        return self._get_tf_dataset(self._events_train_df, self._gt_train_df, DatasetType.TRAIN_DS)
+        return self._get_tf_dataset(self.PATH_FOR_TRAIN_NP)
+
+    def get_val_ds(self):
+        """windowed tensorflow validation dataset"""
+        pass
 
     def get_test_ds(self):
         """windowed tensorflow test dataset"""
-        return self._get_tf_dataset(self._events_test_df, self._gt_test_df, DatasetType.TEST_DS)
+        pass
+
+    def _dataset_generator(self, base_ds_path):
+        [np_input_events, np_gt] = restore_dataset_df_from_file(base_ds_path.decode('utf-8'))
+
+        max_days = np_input_events.shape[0]
+        window_size = self.hp_cfg.sliding_window_size
+
+        # since range excludes the finishing mark we have to add + 1 at the end.
+        # Also, we have to stop when we extracted the last window which starts at max days - sliding window size.
+        # Therefore we have to subtract sliding window size from max days.
+        last_window_step = max_days - window_size + 1
+
+        for window_start in range(last_window_step):
+            input_window = np_input_events[window_start:window_start + window_size]
+            gt = np_gt[window_start + window_size - 1]
+
+            yield tf.convert_to_tensor(input_window, dtype=tf.float16), tf.convert_to_tensor(gt, dtype=tf.float16)
+
+    def _get_tf_dataset(self, base_ds_path):
+        assert dataset_np_has_been_build(
+            base_ds_path
+        ), "Train dataset numpy array has not yet been build"
+
+        # since the input spec of every dataset type is equal, we only have to set it once.
+        # the first ds method reaching this statement sets the dataset spec. We have to set it as late as possible,
+        # because every other method, that could set it, is governed by caching checks, could have not been executed.
+        if not self.dataset_spec:
+            self.dataset_spec = self._build_dataset_spec(base_ds_path)
+
+        return tf.data.Dataset.from_generator(
+            self._dataset_generator,
+            args=[base_ds_path],
+            output_signature=self.dataset_spec,
+        )
 
     def _prepare_word_embedding(self):
         if self._old_preprocessing_result_can_be_reused:
@@ -172,89 +264,6 @@ class Preprocessor:
         self.embedding_model = Sequential()
         self.embedding_model.add(embedding)
         self.embedding_model.compile()
-
-    def _get_tf_dataset(self, events_df, gt_df, ds_type: DatasetType):
-        """Return windowed dataset based on events_df and ground truth"""
-        dataset_path = f'{self.DATASET_CACHE_PATH}/{ds_type.value}'
-
-        if self._old_preprocessing_result_can_be_reused:
-            with open(tf_data_path + '/element_spec', 'rb') as in_:
-                es = pickle.load(in_)
-            return tf.data.experimental.load(dataset_path, es)
-
-        sliding_window_length = self.hp_cfg.sliding_window_size
-
-        dates_count = len(events_df.groupby(level=0))
-        symbols_count = len(events_df.groupby(level=1))
-
-        assert sliding_window_length < dates_count, (
-            f"sliding window length ({sliding_window_length}) "
-            f"does exceed date count ({dates_count}) in dataset."
-        )
-
-        # build the input np matrix
-
-        np_stock_matrix = events_df.values.reshape(dates_count, symbols_count, 1)
-
-        events_counts = []
-
-        def add_to_events_counts(list_input):
-            events_counts.append(len(list_input[0]))
-
-        np.apply_along_axis(
-            add_to_events_counts, axis=2, arr=np_stock_matrix
-        )
-
-        max_event_count = max(events_counts)
-
-        # timeseries_dataset_from_array only takes np arrays with defined shape.
-        # The third to last dimension of the np stock array (events count) is padded
-        # to match the longest element in this dimension
-
-        def array_cast(list_input):
-            unfold_event_list = np.asarray(list_input[0])
-            return np.pad(
-                unfold_event_list,
-                (
-                    (0, max_event_count - unfold_event_list.shape[0]),
-                    (0, 0),
-                    (0, 0),
-                ),
-            )
-
-        np_stock_matrix = np.apply_along_axis(array_cast, axis=2, arr=np_stock_matrix)
-
-        # build the gt np matrix
-        np_gt_trend_matrix = gt_df.values.reshape(dates_count, symbols_count, 1)
-
-        # since the 'timeseries_dataset_from_array' documentation states:
-        #
-        # "targets[i] should be the target corresponding to the window that starts at index i"
-        #
-        # we have to 'shift' the gt_tensor #{sliding_window_length} time steps 'back in time',
-        # so that target[1] yields the gt for the first window, which otherwise would be at
-        # target[{sliding_window_length}]
-        np_gt_trend_matrix = np.roll(
-            np_gt_trend_matrix, shift=-(sliding_window_length - 1), axis=0
-        )
-
-        tf_ds = tf.keras.preprocessing.timeseries_dataset_from_array(
-            data=np_stock_matrix.astype('float16'),
-            targets=np_gt_trend_matrix.astype('float16'),
-            sequence_length=sliding_window_length,
-            sequence_stride=1,
-            batch_size=self.train_cfg.batch_size,
-        )
-
-        # Use preprocessing and maybe rebuild pipeline using .window() .batch()
-        # Also when using .load currently the fancy pipeline things dont get used.
-        tf_ds = tf_ds.cache(dataset_path).prefetch(tf.data.AUTOTUNE)
-        # save dataset to disk and the element_spec to disk for future loading
-        tf.data.experimental.save(tf_ds, dataset_path)
-        with open(dataset_path + '/element_spec',  'wb') as out_:
-            pickle.dump(ds.element_spec, out_)
-
-        return tf_ds
 
     def _build_date_dataframe(self):
         dates = pd.date_range(self.data_cfg.start_str, self.data_cfg.end_str, freq="D")
@@ -329,7 +338,9 @@ class Preprocessor:
 
         indicator_next_day = symbol_feedback_df.shift(-1).replace(np.nan, 0)
         indicator_current_day = symbol_feedback_df
-        symbol_feedback_df = (indicator_next_day - indicator_current_day) / indicator_current_day
+        symbol_feedback_df = (
+            indicator_next_day - indicator_current_day
+        ) / indicator_current_day
 
         symbol_feedback_df = symbol_feedback_df.join(symbol_price_df["date"])
 
@@ -344,13 +355,13 @@ class Preprocessor:
                 field
                 for field in PriceDataInfo.fields
                 if field != "date"
-                   and field != "gt_trend"
-                   and field not in self.data_cfg.feedback_metrics
+                and field != "gt_trend"
+                and field not in self.data_cfg.feedback_metrics
             ],
             axis=1,
         )
 
-    def _set_train_val_test_split(self, events_df):
+    def _get_train_val_test_split(self, events_df):
 
         actual_val_split = 1 - (self.train_cfg.val_split + self.train_cfg.test_split)
         actual_test_split = 1 - self.train_cfg.test_split
@@ -373,14 +384,14 @@ class Preprocessor:
             ],
         )
 
-        self._events_train_df = events_train_df["event"]
-        self._gt_train_df = events_train_df["gt_trend"]
-
-        self._events_val_df = events_val_df["event"]
-        self._gt_val_df = events_val_df["gt_trend"]
-
-        self._events_test_df = events_test_df["event"]
-        self._gt_test_df = events_test_df["gt_trend"]
+        return [
+            events_train_df["event"],
+            events_train_df["gt_trend"],
+            events_val_df["event"],
+            events_val_df["gt_trend"],
+            events_test_df["event"],
+            events_test_df["gt_trend"],
+        ]
 
     def _get_event_texts_for_symbol(self, symbol):
         press_texts = self._get_symbol_press_df(symbol)["event_text"]
@@ -431,7 +442,7 @@ class Preprocessor:
 
         # setup embedding index
         embeddings_index = {}
-        with open(self.PATH_TO_GLOVE_FILE, encoding="utf8") as file:
+        with open(self.PATH_TO_GLOVE_FILE) as file:
             for line in file:
                 word, coefs = line.split(maxsplit=1)
                 coefs = np.fromstring(coefs, "f", sep=" ")
@@ -458,9 +469,19 @@ class Preprocessor:
         return embedding_matrix
 
     def _check_reusability_of_old_preprocessing(self):
+        np_dataset_matrices_have_been_build = bool(
+            dataset_np_has_been_build(self.PATH_FOR_TRAIN_NP)
+            and dataset_np_has_been_build(self.PATH_FOR_VAL_NP)
+            and dataset_np_has_been_build(self.PATH_FOR_TEST_NP)
+        )
+
         new_configs = self._hp_cfg_has_changed() or self._train_cfg_has_changed()
 
-        return not new_configs and self.data_store.old_data_can_be_reused
+        return (
+            np_dataset_matrices_have_been_build
+            and not new_configs
+            and self.data_store.old_data_can_be_reused
+        )
 
     def _hp_cfg_has_changed(self):
         if hp_cfg_is_cached():
@@ -473,3 +494,65 @@ class Preprocessor:
             old_cfg = deserialize_train_cfg()
             return old_cfg != self.train_cfg
         return True
+
+    def _convert_to_tf_compliant_np_matrices(self, events_df, gt_df):
+
+        sliding_window_length = self.hp_cfg.sliding_window_size
+
+        dates_count = len(events_df.groupby(level=0))
+        symbols_count = len(events_df.groupby(level=1))
+
+        assert sliding_window_length < dates_count, (
+            f"sliding window length ({sliding_window_length}) "
+            f"does exceed date count ({dates_count}) in dataset."
+        )
+
+        np_stock_matrix = events_df.values.reshape(dates_count, symbols_count, 1)
+
+        events_counts = []
+
+        def add_to_events_counts(list_input):
+            events_counts.append(len(list_input[0]))
+
+        np.apply_along_axis(add_to_events_counts, axis=2, arr=np_stock_matrix)
+
+        max_event_count = max(events_counts)
+
+        # tensorflow datasets only takes np arrays with defined shape.
+        # The third to last dimension of the np stock array (events count) is padded
+        # to match the longest element in this dimension
+
+        def array_cast(list_input):
+            unfold_event_list = np.asarray(list_input[0])
+            return np.pad(
+                unfold_event_list,
+                (
+                    (0, max_event_count - unfold_event_list.shape[0]),
+                    (0, 0),
+                    (0, 0),
+                ),
+            )
+
+        np_stock_matrix = np.apply_along_axis(array_cast, axis=2, arr=np_stock_matrix)
+        np_gt_trend_matrix = gt_df.values.reshape(dates_count, symbols_count, 1)
+
+        return [np_stock_matrix, np_gt_trend_matrix]
+
+    def _build_dataset_spec(self, base_ds_path):
+        np_input_events, np_gt = restore_dataset_df_from_file(base_ds_path)
+
+        input_spec = tf.TensorSpec(
+            shape=(
+                self.hp_cfg.sliding_window_size,
+                np_input_events.shape[1],
+                np_input_events.shape[2],
+                np_input_events.shape[3],
+                np_input_events.shape[4],
+            )
+        )
+
+        gt_spec = tf.TensorSpec(
+            shape=(np_gt.shape[1], np_gt.shape[2]),
+        )
+
+        return input_spec, gt_spec
