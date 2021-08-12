@@ -121,27 +121,27 @@ class KubeflowAdapter(KubeflowServe):
             val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
             test_loss = tf.keras.metrics.Mean('test_loss', dtype=tf.float32)
 
-        def train_step(inputs):
-            x, y = inputs
-            with tf.GradientTape() as tape:
-                predictions = model(x, training=True)
-                loss = compute_loss(y, predictions)
-            grads = tape.gradient(loss, model.trainable_variables)
-            optimizer.apply_gradients(zip(grads, model.trainable_variables))
-            train_loss.update_state(loss)
-            return loss
+            def train_step(inputs):
+                x, y = inputs
+                with tf.GradientTape() as tape:
+                    predictions = model(x, training=True)
+                    loss = compute_loss(y, predictions)
+                grads = tape.gradient(loss, model.trainable_variables)
+                optimizer.apply_gradients(zip(grads, model.trainable_variables))
+                train_loss.update_state(loss)
+                return loss
 
-        def val_step(inputs):
-            x, y = inputs
-            predictions = model(x)
-            loss = loss_object(y, predictions)
-            val_loss.update_state(loss)
+            def val_step(inputs):
+                x, y = inputs
+                predictions = model(x)
+                loss = loss_object(y, predictions)
+                val_loss.update_state(loss)
 
-        def test_step(inputs):
-            x, y = inputs
-            predictions = model(x)
-            loss = loss_object(y, predictions)
-            test_loss.update_state(loss)
+            def test_step(inputs):
+                x, y = inputs
+                predictions = model(x)
+                loss = loss_object(y, predictions)
+                test_loss.update_state(loss)
 
         @tf.function
         def distributed_train_step(dataset_inputs):

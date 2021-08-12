@@ -95,6 +95,7 @@ class Preprocessor:
     EMBEDDING_DIM = 300
     MAX_EVENT_LENGTH = 50
     PATH_TO_GLOVE_FILE = "data/assets/glove.6B.300d.txt"
+    DATASET_CACHE_PATH = "data/datasets"
 
     def build_events_data_with_gt(self):
         """builds event data"""
@@ -174,7 +175,7 @@ class Preprocessor:
 
     def _get_tf_dataset(self, events_df, gt_df, ds_type: DatasetType):
         """Return windowed dataset based on events_df and ground truth"""
-        dataset_path = f'data/datasets/{ds_type.value}'
+        dataset_path = f'{self.DATASET_CACHE_PATH}/{ds_type.value}'
 
         if self._old_preprocessing_result_can_be_reused:
             return tf.data.experimental.load(dataset_path)
@@ -243,8 +244,10 @@ class Preprocessor:
             batch_size=self.train_cfg.batch_size,
         )
 
-        tf_ds = tf_ds.cache().prefetch(tf.data.AUTOTUNE)
-        # cache dataset
+        # Use preprocessing and maybe rebuild pipeline using .window() .batch()
+        # Also when using .load currently the fancy pipeline things dont get used.
+        tf_ds = tf_ds.cache(dataset_path).prefetch(tf.data.AUTOTUNE)
+        # save dataset to disk
         tf.data.experimental.save(tf_ds, dataset_path)
 
         return tf_ds
@@ -451,10 +454,9 @@ class Preprocessor:
         return embedding_matrix
 
     def _check_reusability_of_old_preprocessing(self):
-        has_been_cached = all([os.path.isdir(t.value) for t in DatasetType])
         new_configs = self._hp_cfg_has_changed() or self._train_cfg_has_changed()
 
-        return has_been_cached and not new_configs and self.data_store.old_data_can_be_reused
+        return not new_configs and self.data_store.old_data_can_be_reused
 
     def _hp_cfg_has_changed(self):
         if hp_cfg_is_cached():
