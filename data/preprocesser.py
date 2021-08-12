@@ -213,8 +213,6 @@ class Preprocessor:
 
     def _dataset_generator(self, base_ds_path):
         [np_input_events, np_gt] = restore_dataset_df_from_file(base_ds_path.decode('utf-8'))
-        print(np_input_events.shape)
-        print(np_gt.shape)
         max_days = np_input_events.shape[0]
         window_size = self.hp_cfg.sliding_window_size
 
@@ -224,11 +222,9 @@ class Preprocessor:
         last_window_step = max_days - window_size + 1
 
         for window_start in range(last_window_step):
-            print("window start: " + str(window_start))
             input_window = np_input_events[window_start:window_start + window_size]
             gt = np_gt[window_start + window_size - 1]
-            print(input_window.shape)
-            print(gt.shape)
+
             yield tf.convert_to_tensor(input_window, dtype=tf.float16), tf.convert_to_tensor(gt, dtype=tf.float16)
 
     def _get_tf_dataset(self, global_batch_size, base_ds_path):
