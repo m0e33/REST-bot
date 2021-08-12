@@ -3,7 +3,7 @@ from model.rest_kubeflow_adapter import KubeflowAdapter
 import logging
 
 format = '([%(name)s] %(levelname)s %(asctime)s) -- %(message)s'
-logging.basicConfig(filename='log.log', level=logging.DEBUG, format=format, datefmt='%H:%M:%S', force=True)
+logger = logging.basicConfig(filename='log.log', level=logging.DEBUG, format=format, datefmt='%H:%M:%S', force=True)
 
 # set up console logging
 console = logging.StreamHandler()
@@ -11,9 +11,8 @@ console.setLevel(logging.DEBUG)
 formatter = logging.Formatter(format)
 console.setFormatter(formatter)
 
-logging.getLogger('').addHandler(console)
-
-logger = logging.getLogger("MAIN")
+logger = logging.getLogger()
+logger.addHandler(console)
 
 if __name__ == '__main__':
 
