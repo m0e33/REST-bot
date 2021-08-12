@@ -1,23 +1,24 @@
+import logging
 import argparse
 import os
 
 from model.rest_kubeflow_adapter import KubeflowAdapter
-import logging
 
 from utils.gpu import get_cuda_visible_devices
+root_logger = logging.getLogger('')
+root_logger.handlers = []
 
 format = '([%(name)s] %(levelname)s %(asctime)s) -- %(message)s'
-logging.basicConfig(filename='log.log', level=logging.DEBUG, format=format, datefmt='%H:%M:%S', force=True)
-
-# set up console logging
+logging.basicConfig(filename="log.log", level=logging.DEBUG, format=format, datefmt='%H:%M:%S')
 console = logging.StreamHandler()
-console.setLevel(logging.INFO)
+console.setLevel(logging.DEBUG)
+# set a format which is simpler for console use
 formatter = logging.Formatter(format)
 console.setFormatter(formatter)
-
-logging.getLogger().addHandler(console)
-
-logger = logging.getLogger("MAIN")
+# add the handler to the root logger
+logging.getLogger('').addHandler(console)
+logger = logging.getLogger('')
+print(logger.handlers)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-g', '--gpus', nargs='+', default='auto')
