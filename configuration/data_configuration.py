@@ -29,7 +29,8 @@ class DataConfiguration:
             end: str,
             feedback_metrics: List[str],
             gt_metric: GroundTruthMetric = GroundTruthMetric.CLOSE,
-            stock_news_limit: int = 500
+            stock_news_fetch_limit: int = 500,
+            events_per_day_limit: int = 10
     ) -> None:
         self.start_str = start
         self.start = datetime.strptime(start, self.DATE_FORMAT).date()
@@ -39,7 +40,8 @@ class DataConfiguration:
         self.gt_metric = gt_metric
         self.feedback_metrics = feedback_metrics
         self.symbols = symbols
-        self.stock_news_limit = stock_news_limit
+        self.stock_news_fetch_limit = stock_news_fetch_limit
+        self.events_per_day_limit = events_per_day_limit
 
     """Single source data configuration class"""
     DATE_FORMAT = "%Y-%m-%d"
@@ -60,7 +62,8 @@ class DataConfiguration:
             and self.gt_metric == other.gt_metric
             and self.feedback_metrics == other.feedback_metrics
             and self.symbols == other.symbols
-            and self.stock_news_limit == other.stock_news_limit)
+            and self.stock_news_fetch_limit == other.stock_news_fetch_limit
+            and self.events_per_day_limit == other.events_per_day_limit)
 
     def __repr__(self):
         return str({attr: getattr(self, attr) for attr in dir(self) if
