@@ -14,6 +14,6 @@ def get_cuda_visible_devices(selected_gpus, n_gpus):
             gpus = gpus_most_idle
     else:
         assert(n_gpus == "all", "Can only use one of --gpus and --n_gpus.")
-        gpus = selected_gpus
-    return ','.join(gpus) if gpus else ''
+        gpus = list(selected_gpus)
+    return ','.join(str(g) for g in gpus) if gpus else ''
 
