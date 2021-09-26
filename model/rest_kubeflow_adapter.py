@@ -219,7 +219,7 @@ class KubeflowAdapter(KubeflowServe):
 
     def predict_model(self, model: RESTNet, data) -> any:
         """Predict using the model for given ndarray."""
-        prediction = model.predict(data=data)
+        prediction = model.predict(x=data)
 
         return prediction
 
@@ -235,6 +235,9 @@ class KubeflowAdapter(KubeflowServe):
             train_cfg = TrainConfiguration()
         model = RESTNet(hp_cfg, train_cfg)
 
-        model.load_weights(self.get_model_path())
+        load_status = model.load_weights(self.get_model_path())
+
+        # load_status.assert_consumed()
+        load_status.assert_existing_objects_matched()
 
         return model
