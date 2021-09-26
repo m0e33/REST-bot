@@ -135,7 +135,7 @@ class KubeflowServe(ABC):
 
         self.trained_models = self.load_model()
 
-        result = self.predict_model(models=self.trained_models, **features)
+        result = self.predict_model(model=self.trained_models, **features)
         logger.info('Predicted result: ')
         logger.info(result)
 
