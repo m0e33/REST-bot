@@ -36,6 +36,8 @@ class RESTNet(tf.keras.Model):
         self.stock_dependent_influence = StockDependentInfluence()
         self.stock_trend_forecaster = Dense(1)
 
+    LAYER_BASE_PATH = "model/weights/"
+
     @tf.function
     def call(self, inputs):
         logger.debug("Starting forward pass of batch")

@@ -12,10 +12,19 @@ from kubeflow_utils.training_result import TrainingResult
 from data.data_store import DataStore, DataConfiguration
 from data.preprocesser import Preprocessor
 from configuration.configuration import TrainConfiguration, HyperParameterConfiguration
-from model.metrics import Metrics
 
 from utils.progess import Progress
 from utils.symbols import load_symbols
+from configuration.configuration import (
+    TrainConfiguration,
+    HyperParameterConfiguration,
+    hp_cfg_is_cached,
+    deserialize_hp_cfg,
+    serialize_hp_cfg,
+    train_cfg_is_cached,
+    deserialize_train_cfg,
+    serialize_train_cfg,
+)
 
 logger = logging.getLogger("kubeflow_adapter")
 current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H꞉%M꞉%S")
@@ -165,6 +174,11 @@ class KubeflowAdapter(KubeflowServe):
             if epoch == 10:
                 tf.profiler.experimental.start(f"logs/profiler/{current_time}")
 
+            if epoch == 1:
+                model.save_weights(f"model/weights/ckpt-epoch-{epoch:04d}")
+
+            if epoch % 50 == 0:
+                model.save_weights(f"{model.LAYER_BASE_PATH}/ckpt-epoch-{epoch:04d}")
             # TRAIN LOOP
             total_loss = 0.0
             num_batches = 0
@@ -195,6 +209,9 @@ class KubeflowAdapter(KubeflowServe):
         # TEST LOOP
         for inputs in test_dist_dataset:
             distributed_test_step(inputs)
+
+        # save final model
+        model.save_weights(f"{model.LAYER_BASE_PATH}/ckpt-final")
 
         return TrainingResult(
             models=[],
