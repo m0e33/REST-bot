@@ -12,10 +12,19 @@ from kubeflow_utils.training_result import TrainingResult
 from data.data_store import DataStore, DataConfiguration
 from data.preprocesser import Preprocessor
 from configuration.configuration import TrainConfiguration, HyperParameterConfiguration
-from model.metrics import Metrics
 
 from utils.progess import Progress
 from utils.symbols import load_symbols
+from configuration.configuration import (
+    TrainConfiguration,
+    HyperParameterConfiguration,
+    hp_cfg_is_cached,
+    deserialize_hp_cfg,
+    serialize_hp_cfg,
+    train_cfg_is_cached,
+    deserialize_train_cfg,
+    serialize_train_cfg,
+)
 
 logger = logging.getLogger("kubeflow_adapter")
 current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H꞉%M꞉%S")
@@ -60,17 +69,17 @@ class KubeflowAdapter(KubeflowServe):
 
     def get_metadata(self) -> MetadataConfig:
         return MetadataConfig(
-            model_names="trained_ames_model.dat",
-            model_description="xgboost model for predicting prices",
+            model_names="RESTNet",
+            model_description="custom model for predicting stock prices",
             model_version="v0.1",
             model_type="linear_regression",
             maturity_state="development",
-            dataset_name="ames training data",
-            dataset_description="dataset consists of multiple prices",
-            dataset_path="ames_dataset",
-            dataset_version="v0.3",
+            dataset_name="rest_data",
+            dataset_description="press releases, news and historical prices",
+            dataset_path="rest_data",
+            dataset_version="v0.1",
             owner="developer@mail.me",
-            training_framework_name="xgboost",
+            training_framework_name="tensorflow",
             training_framework_version="1.2.1",
         )
 
@@ -165,6 +174,11 @@ class KubeflowAdapter(KubeflowServe):
             if epoch == 10:
                 tf.profiler.experimental.start(f"logs/profiler/{current_time}")
 
+            if epoch % 100 == 0 | epoch == 1:
+                path = f"{self.get_model_path()}-{epoch:04d}"
+                logger.info(f"saving model to '{path}'")
+                model.save_weights(path)
+
             # TRAIN LOOP
             total_loss = 0.0
             num_batches = 0
@@ -196,14 +210,34 @@ class KubeflowAdapter(KubeflowServe):
         for inputs in test_dist_dataset:
             distributed_test_step(inputs)
 
+        # save final model
         return TrainingResult(
-            models=[],
-            evaluation={'test_loss': test_loss.result(), 'val_loss': val_loss.result(), 'train_loss': train_loss.result()},
+            models=[model],
+            evaluation={'test_loss': test_loss.result(), 'val_loss': val_loss.result(), 'train_loss': train_loss},
             hyperparameters={}
         )
 
-    def predict_model(self, models, data) -> Union[np.ndarray, List, str, bytes]:
+    def predict_model(self, model: RESTNet, data) -> any:
         """Predict using the model for given ndarray."""
-        prediction = models[0].predict(data=data)
+        prediction = model.predict(x=data)
 
         return prediction
+
+    def load_model(self):
+        # This works as long as train and hyper parameter config are the default values.
+        if hp_cfg_is_cached():
+            hp_cfg = deserialize_hp_cfg()
+        else:
+            hp_cfg = HyperParameterConfiguration()
+        if train_cfg_is_cached():
+            train_cfg = deserialize_train_cfg()
+        else:
+            train_cfg = TrainConfiguration()
+        model = RESTNet(hp_cfg, train_cfg)
+
+        load_status = model.load_weights(self.get_model_path())
+
+        # load_status.assert_consumed()
+        load_status.assert_existing_objects_matched()
+
+        return model

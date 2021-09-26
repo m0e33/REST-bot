@@ -5,6 +5,7 @@ import sys
 import typing
 from abc import abstractmethod, ABC
 from typing import Dict, Any, List
+from model.model import RESTNet
 
 import joblib
 from kubeflow import fairing
@@ -14,6 +15,7 @@ from kubeflow_utils.config import settings
 from kubeflow_utils.metadata_config import MetadataConfig
 from kubeflow_utils.model_storage_utils import gcs_copy, gcs_copy_dir, save_model, gcs_make_bucket
 from kubeflow_utils.training_result import TrainingResult
+from model.model import RESTNet
 
 GCP_PROJECT = fairing.cloud.gcp.guess_project_name()
 GCS_BUCKET_ID = f'{settings.gcloud.bucket_id}'
@@ -48,7 +50,7 @@ class KubeflowServe(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def predict_model(self, models: List[any], **kwargs) -> any:
+    def predict_model(self, model: RESTNet, **kwargs) -> any:
         """
 
         :rtype: should return prediction
@@ -73,8 +75,7 @@ class KubeflowServe(ABC):
         self.artifact_store.re_init(pipeline_run)
         # logger.info(kwargs)
 
-        model_names = [self.get_metadata().model_names] if type(
-            self.get_metadata().model_names) is str else self.get_metadata().model_names
+        model_names = self.get_metadata().model_names
         parsed_model_names = ', '.join(model_names)
 
         self.artifact_store.log_execution_input(
@@ -88,7 +89,9 @@ class KubeflowServe(ABC):
         logger.info("Calling model training")
         training_result = self.train_model(pipeline_run=pipeline_run, **kwargs)
         logger.info("Finished Training")
-        models = training_result.models if isinstance(training_result.models, list) else [training_result.models]
+
+        model = training_result.models[0]
+        self.save_model_weights(model)
 
         if pipeline_run:
             metrics = {
@@ -112,23 +115,13 @@ class KubeflowServe(ABC):
             evaluation=training_result.evaluation
         )
 
-        gcs_model_paths = []
-        for model_file, model in zip(model_names, models):
-            # if model is a string it is a path to the saved model
-            gcs_model_file = get_gcs_model_file(model_file)
-
-            save_model(model, model_file)
-
-            gcs_copy(model_file, gcs_model_file)
-            gcs_model_paths.append(gcs_model_file)
-
         self.artifact_store.log_model(
             model_version=self.get_metadata().model_version,
             model_name=parsed_model_names,
             model_type=self.get_metadata().model_type,
             model_description=self.get_metadata().model_description,
             owner=self.get_metadata().owner,
-            gs_path=', '.join(gcs_model_paths),
+            gs_path='',
             hyperparameters=training_result.hyperparameters,
             training_framework_name=self.get_metadata().training_framework_name,
             training_framework_version=self.get_metadata().training_framework_version,
@@ -140,28 +133,10 @@ class KubeflowServe(ABC):
         for key in features.keys():
             logger.info(f'{key}: {features[key]}')
 
-        model_names = [self.get_metadata().model_names] if type(
-            self.get_metadata().model_names) is str else self.get_metadata().model_names
-        parsed_model_names = ', '.join(model_names)
+        self.trained_models = self.load_model()
 
-        """Download or prepare model files"""
-        if not self.trained_models:
-            self.trained_models = []
-            model_names = [self.get_metadata().model_names] if type(
-                self.get_metadata().model_names) is str else self.get_metadata().model_names
-            for model_file in model_names:
-                if not os.path.isfile(model_file):
-                    logger.info(f'Load model {model_file} from gcloud')
-                    gcs_model_file = get_gcs_model_file(model_file)
-                    gcs_copy(gcs_model_file, model_file)
-
-
-                model = joblib.load(model_file)
-                self.trained_models.append(model)
-
-        logger.info(f"Model(s): {parsed_model_names}")
-        result = self.predict_model(models=self.trained_models, **features)
-
+        result = self.predict_model(model=self.trained_models, **features)
+        logger.info('Predicted result: ')
         logger.info(result)
 
         return result
@@ -293,3 +268,15 @@ class KubeflowServe(ABC):
 
     def create_bucket(self):
         gcs_make_bucket(GCS_BUCKET, GCP_PROJECT)
+
+    def get_model_path(self):
+        return f"{RESTNet.LAYER_BASE_PATH}{self.get_metadata().model_names}"
+
+    def save_model_weights(self, model: RESTNet):
+        path = self.get_model_path()
+        logger.info(f"save model to '{path}'")
+        model.save_weights(path)
+
+    @abstractmethod
+    def load_model(self):
+        pass
