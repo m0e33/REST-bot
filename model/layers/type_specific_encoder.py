@@ -24,6 +24,7 @@ class TypeSpecificEncoder(keras.layers.Layer):
         self._event_embedding_shape = self._word_embedding_size * self._num_heads
         # pylint: disable=invalid-name
         self.w = self.add_weight(
+            name="w",
             shape=(self._num_heads, self._word_embedding_size),
             initializer="random_normal",
             trainable=True,
@@ -31,6 +32,7 @@ class TypeSpecificEncoder(keras.layers.Layer):
 
         # pylint: disable=invalid-name
         self.b = self.add_weight(
+            name="b",
             shape=(self._num_heads, self._word_embedding_size),
             initializer="random_normal",
             trainable=True,
