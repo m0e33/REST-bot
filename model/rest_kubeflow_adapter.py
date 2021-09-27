@@ -132,6 +132,14 @@ class KubeflowAdapter(KubeflowServe):
             val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
             test_loss = tf.keras.metrics.Mean('test_loss', dtype=tf.float32)
 
+            # Add other metrics
+            train_rmse = tf.keras.metrics.RootMeanSquaredError('train_rmse', dtype=tf.float32)
+            train_mae = tf.keras.metrics.MeanAbsoluteError(name='train_mae', dtype=tf.float32)
+            # mean absolute percentage error
+            train_mape = tf.keras.metrics.MeanAbsolutePercentageError(
+                name='train_mean_absolute_percentage_error', dtype=None
+            )
+
             def train_step(inputs):
                 x, y = inputs
                 with tf.GradientTape() as tape:
@@ -140,6 +148,10 @@ class KubeflowAdapter(KubeflowServe):
                 grads = tape.gradient(loss, model.trainable_variables)
                 optimizer.apply_gradients(zip(grads, model.trainable_variables))
                 train_loss.update_state(loss)
+                train_rmse.update_state(y, predictions)
+                train_mae.update_state(y, predictions)
+                train_mape.update_state(y, predictions)
+
                 return loss
 
             def val_step(inputs):
@@ -171,7 +183,7 @@ class KubeflowAdapter(KubeflowServe):
             logger.info(f"Started Epoch {epoch+1} from {hp_cfg.num_epochs}")
             start_time = time.time()
 
-            if epoch == 1:
+            if epoch == 10:
                 tf.profiler.experimental.start(f"logs/profiler/{current_time}")
 
             if epoch % 100 == 0 | epoch == 1:
@@ -202,6 +214,9 @@ class KubeflowAdapter(KubeflowServe):
                 tf.summary.scalar('step_duration', step_duration, step=epoch)
                 tf.summary.scalar('train_loss', train_loss, step=epoch)
                 tf.summary.scalar('val_loss', val_loss.result(), step=epoch)
+                tf.summary.scalar('train_rmse', train_rmse.result(), step=epoch)
+                tf.summary.scalar('train_mae', train_mae.result(), step=epoch)
+                tf.summary.scalar('train_mape', train_mape.result(), step=epoch)
 
             logger.info(f"Epoch {epoch}, loss: {train_loss}, val_loss: {val_loss.result()}")
             val_loss.reset_states()

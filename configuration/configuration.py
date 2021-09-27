@@ -11,7 +11,7 @@ TRAIN_CACHING_PATH = "./configuration/cached_train_cfg"
 class HyperParameterConfiguration:
     """ Class for storing hyper parameters"""
 
-    num_epochs: int = 2
+    num_epochs: int = 10
     attn_cnt: int = 2
     lstm_units_cnt: int = 40
     sliding_window_size: int = 5
