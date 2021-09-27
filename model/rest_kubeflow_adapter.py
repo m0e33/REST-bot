@@ -122,15 +122,15 @@ class KubeflowAdapter(KubeflowServe):
         with strategy.scope():
             model = RESTNet(hp_cfg, train_cfg)
             optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
-            loss_object = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
+            loss_object = tf.keras.losses.MeanAbsoluteError(reduction=tf.keras.losses.Reduction.NONE)
 
             def compute_loss(labels, predictions):
                 per_example_loss = loss_object(labels, predictions)
                 return tf.nn.compute_average_loss(per_example_loss, global_batch_size=global_batch_size)
 
-            train_loss = tf.keras.metrics.MeanSquaredError('train_loss', dtype=tf.float32)
-            val_loss = tf.keras.metrics.MeanSquaredError('val_loss', dtype=tf.float32)
-            test_loss = tf.keras.metrics.MeanSquaredError('test_loss', dtype=tf.float32)
+            train_loss = tf.keras.metrics.Mean('train_loss', dtype=tf.float32)
+            val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
+            test_loss = tf.keras.metrics.Mean('test_loss', dtype=tf.float32)
 
             # Add other metrics
             train_rmse = tf.keras.metrics.RootMeanSquaredError('train_rmse', dtype=tf.float32)
