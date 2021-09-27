@@ -171,7 +171,7 @@ class KubeflowAdapter(KubeflowServe):
             logger.info(f"Started Epoch {epoch+1} from {hp_cfg.num_epochs}")
             start_time = time.time()
 
-            if epoch == 10:
+            if epoch == 1:
                 tf.profiler.experimental.start(f"logs/profiler/{current_time}")
 
             if epoch % 100 == 0 | epoch == 1:
