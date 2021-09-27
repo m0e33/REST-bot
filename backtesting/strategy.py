@@ -56,7 +56,7 @@ class Strategy:
                 new_pos = Position(symbol, price, 3, pred, date, open_fee)
                 self._positions[symbol].append(new_pos)
             else:
-                # there is already an open position
+                # there is already an open position, so we just going to hold that position
                 continue
 
         for symbol in sell_symbols:
