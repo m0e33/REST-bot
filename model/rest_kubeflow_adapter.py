@@ -94,11 +94,11 @@ class KubeflowAdapter(KubeflowServe):
 
         hp_cfg = HyperParameterConfiguration()
         data_cfg = DataConfiguration(
-            symbols=load_symbols(4),
-            start="2021-01-01",
-            end="2021-08-01",
+            symbols=load_symbols(limit=None),
+            start="2019-01-01",
+            end="2021-01-01",
             feedback_metrics=["open", "close", "high", "low", "vwap"],
-            stock_news_fetch_limit=200,
+            stock_news_fetch_limit=20000,
             events_per_day_limit=10
         )
         logger.info(f"Train configuration: {str(train_cfg)}")
