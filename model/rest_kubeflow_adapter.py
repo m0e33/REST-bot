@@ -1,8 +1,7 @@
 import datetime
 import logging
 import time
-from typing import Union, List
-import numpy as np
+from pprint import pformat
 import tensorflow as tf
 from model.model import RESTNet
 
@@ -41,13 +40,11 @@ class KubeflowAdapter(KubeflowServe):
         self.download_data(cloud_path, data_path)
 
     @staticmethod
-    def create_datasets(data_cfg: DataConfiguration, train_cfg: TrainConfiguration, hp_cfg: HyperParameterConfiguration, global_batch_size):
+    def create_datasets(data_cfg: DataConfiguration, train_cfg: TrainConfiguration, hp_cfg: HyperParameterConfiguration,
+                        global_batch_size):
         """Read input data and create train, validation and test datasets."""
 
         logger.info("Reading Symbols")
-
-        logger.info(f"Data configuration: {str(data_cfg)}")
-
         data_store = DataStore(data_cfg)
 
         logger.info("Build Data Store")
@@ -94,11 +91,11 @@ class KubeflowAdapter(KubeflowServe):
 
         hp_cfg = HyperParameterConfiguration()
         data_cfg = DataConfiguration(
-            symbols=load_symbols(limit=None),
-            start="2019-01-01",
-            end="2021-01-01",
+            symbols=load_symbols(4),
+            start="2021-01-01",
+            end="2021-08-01",
             feedback_metrics=["open", "close", "high", "low", "vwap"],
-            stock_news_fetch_limit=20000,
+            stock_news_fetch_limit=1000,
             events_per_day_limit=10
         )
         logger.info(f"Train configuration: {str(train_cfg)}")
@@ -121,9 +118,8 @@ class KubeflowAdapter(KubeflowServe):
 
         with strategy.scope():
             model = RESTNet(hp_cfg, train_cfg)
-            #model.summary()
             optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
-            loss_object = tf.keras.losses.MeanAbsoluteError(reduction=tf.keras.losses.Reduction.NONE)
+            loss_object = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
 
             def compute_loss(labels, predictions):
                 per_example_loss = loss_object(labels, predictions)
@@ -133,6 +129,7 @@ class KubeflowAdapter(KubeflowServe):
             test_loss = tf.keras.metrics.Mean('test_loss', dtype=tf.float32)
 
             # Add other metrics
+            train_mse = tf.keras.metrics.MeanSquaredError('train_mse', dtype=tf.float32)
             train_rmse = tf.keras.metrics.RootMeanSquaredError('train_rmse', dtype=tf.float32)
             train_mae = tf.keras.metrics.MeanAbsoluteError(name='train_mae', dtype=tf.float32)
             # mean absolute percentage error
@@ -145,11 +142,13 @@ class KubeflowAdapter(KubeflowServe):
                 with tf.GradientTape() as tape:
                     predictions = model(x, training=True)
                     loss = compute_loss(y, predictions)
+
                 grads = tape.gradient(loss, model.trainable_variables)
                 optimizer.apply_gradients(zip(grads, model.trainable_variables))
                 train_rmse.update_state(y, predictions)
                 train_mae.update_state(y, predictions)
                 train_mape.update_state(y, predictions)
+                train_mse.update_state(y, predictions)
 
                 return loss
 
@@ -179,13 +178,17 @@ class KubeflowAdapter(KubeflowServe):
             return strategy.run(test_step, args=(dataset_inputs,))
 
         for epoch in range(hp_cfg.num_epochs):
-            logger.info(f"Started Epoch {epoch+1} from {hp_cfg.num_epochs}")
+            logger.info(f"Started Epoch {epoch + 1} from {hp_cfg.num_epochs}")
             start_time = time.time()
 
             if epoch == 10:
                 tf.profiler.experimental.start(f"logs/profiler/{current_time}")
 
-            if epoch % 100 == 0 or epoch == 1:
+            if epoch == 1:
+                # model needs to be build or called at least once for summary to work
+                model.summary()
+
+            if (epoch % 100 == 0 and not epoch == 0) or epoch == 1:
                 path = f"{self.get_model_path()}-{epoch:04d}"
                 logger.info(f"saving model to '{path}'")
                 model.save_weights(path)
@@ -214,6 +217,7 @@ class KubeflowAdapter(KubeflowServe):
                 tf.summary.scalar('train_loss', train_loss, step=epoch)
                 tf.summary.scalar('val_loss', val_loss.result(), step=epoch)
                 tf.summary.scalar('train_rmse', train_rmse.result(), step=epoch)
+                tf.summary.scalar('train_mse', train_mse.result(), step=epoch)
                 tf.summary.scalar('train_mae', train_mae.result(), step=epoch)
                 tf.summary.scalar('train_mape', train_mape.result(), step=epoch)
 
@@ -222,6 +226,7 @@ class KubeflowAdapter(KubeflowServe):
             val_loss.reset_states()
             train_mae.reset_states()
             train_mape.reset_states()
+            train_mse.reset_states()
 
         # TEST LOOP
         for inputs in test_dist_dataset:

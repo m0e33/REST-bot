@@ -91,6 +91,7 @@ class Preprocessor:
         data_cfg: DataConfiguration,
         train_cfg: TrainConfiguration,
         hp_cfg: HyperParameterConfiguration,
+        for_inference: bool = False
     ):
         self.data_store = data_store
         self.data_cfg = data_cfg
@@ -102,10 +103,15 @@ class Preprocessor:
         self.train_cfg = train_cfg
         self.hp_cfg = hp_cfg
 
-        # advanced caching mechanism needs to safe new configurations
-        self._old_preprocessing_result_can_be_reused = (
-            self._check_reusability_of_old_preprocessing()
-        )
+        if for_inference:
+            logger.info("Preprocessing in 'inference-mode', no caching of configurations.")
+            self._old_preprocessing_result_can_be_reused = False
+        else:
+            # advanced caching mechanism needs to safe new configurations
+            self._old_preprocessing_result_can_be_reused = (
+                self._check_reusability_of_old_preprocessing()
+            )
+
         logger.info(
             "Preprocessing result reusable: "
             + str(self._old_preprocessing_result_can_be_reused)
@@ -117,12 +123,8 @@ class Preprocessor:
 
         self.dataset_spec = []
 
-        self._vectorizer = TextVectorization(
-            max_tokens=self.data_cfg.stock_news_fetch_limit,
-            output_sequence_length=self.MAX_EVENT_LENGTH,
-        )
         self.embedding_model: Sequential
-        self._prepare_word_embedding()
+        self._prepare_word_embedding(for_inference)
 
     NOTHING_HAPPENED_TEXT = "Nothing happened"
     EMBEDDING_DIM = 300
@@ -132,45 +134,26 @@ class Preprocessor:
     PATH_FOR_VAL_NP = "data/datasets/val/"
     PATH_FOR_TEST_NP = "data/datasets/test/"
 
-    def build_events_data_with_gt(self):
+    def get_inference_input(self):
+        """builds np matrix for model input from data configuration"""
+        events_df = self._build_events_df()
+
+        # Theoretically, for production system, there should be no gt.
+        # (we think that) Our code just puts zeros when there is no price information.
+        np_input_inference, _ = self._convert_to_tf_compliant_np_matrices(
+            events_df['event'], events_df['gt_trend']
+        )
+
+        return np_input_inference
+
+    def build_events_data_with_gt(self, for_training: bool = True):
         """builds event data"""
 
         # check cached events_df
         if self._old_preprocessing_result_can_be_reused:
             return
 
-        # vertically concatenate all symbols and their events
-        events_df = pd.concat(
-            [self._build_df_for_symbol(symbol) for symbol in self.data_cfg.symbols]
-        )
-
-        # join event_title & event_text columns
-        events_df["event"] = events_df["event_type"] + " " + events_df["event_text"]
-        events_df = events_df.drop(["event_type", "event_text"], axis=1)
-        events_df = events_df.astype({"event": object})
-
-        # We have to incorporate the feedback at the end of the event embedding vector
-        # pylint: disable=unnecessary-lambda
-        events_df["event"] = events_df.apply(
-            lambda row: self._create_embedding_with_feedback(row), axis=1
-        )
-
-        # We incorporated the feedback at the end of the event embedding matrix
-        # so we don't need the single metrics anymore
-        events_df = events_df.drop(self.data_cfg.feedback_metrics, axis=1)
-
-        # build multi-index dataframe per date and symbol to later generate tensors
-        # with the right shape easily
-        #
-        # The grouping with gt_trend is unnecessary here, because it holds the same grouping
-        # information as 'date' and 'symbol' combined. We have to list it here in order
-        # to copy it over to the new events_df dataframe
-        events_df = (
-            events_df.groupby(["date", "symbol", "gt_trend"])["event"]
-            .apply(list)
-            .reset_index()
-        )
-        events_df.set_index(["date", "symbol"], inplace=True)
+        events_df = self._build_events_df()
 
         [
             events_train_df,
@@ -244,9 +227,21 @@ class Preprocessor:
             output_signature=self.dataset_spec,
         ).batch(global_batch_size).prefetch(AUTOTUNE)
 
-    def _prepare_word_embedding(self):
-        if self._old_preprocessing_result_can_be_reused:
+    def _prepare_word_embedding(self, for_inference):
+
+        if not for_inference and self._old_preprocessing_result_can_be_reused:
             return
+
+        embedding_model_cache_path = "data/word_embedding/model"
+        # In case of inference, there should be a compiled model for word embeddings derived from the training
+        # dataset vocabulary.
+        # Check for cached model, if so, set it, if not error / build vectorizer from whole database.
+        if for_inference:
+            if len(os.listdir(embedding_model_cache_path)) == 0:
+                self.embedding_model = tf.keras.models.load_model(embedding_model_cache_path)
+                return
+            else:
+                raise("Word embedding model is not cached from previous dataset, aborting inference.")
 
         self._set_vectorizer()
 
@@ -265,6 +260,10 @@ class Preprocessor:
         self.embedding_model = Sequential()
         self.embedding_model.add(embedding)
         self.embedding_model.compile()
+
+        # cache word embedding model
+        Path(embedding_model_cache_path).mkdir(parents=True, exist_ok=True)
+        self.embedding_model.save(embedding_model_cache_path)
 
     def _build_date_dataframe(self):
         dates = pd.date_range(self.data_cfg.start_str, self.data_cfg.end_str, freq="D")
@@ -339,9 +338,9 @@ class Preprocessor:
 
         indicator_next_day = symbol_feedback_df.shift(-1).replace(np.nan, 0)
         indicator_current_day = symbol_feedback_df
-        symbol_feedback_df = (
+        symbol_feedback_df = ((
             indicator_next_day - indicator_current_day
-        ) / indicator_current_day
+        ) / indicator_current_day ) * 100
 
         symbol_feedback_df = symbol_feedback_df.join(symbol_price_df["date"])
 
@@ -423,6 +422,11 @@ class Preprocessor:
         return np.concatenate((event_embedding, feedback_row), axis=0)
 
     def _set_vectorizer(self):
+
+        self._vectorizer = TextVectorization(
+            output_sequence_length=self.MAX_EVENT_LENGTH,
+        )
+
         all_event_texts = pd.concat(
             [
                 self._get_event_texts_for_symbol(symbol)
@@ -554,3 +558,39 @@ class Preprocessor:
         )
 
         return input_spec, gt_spec
+
+    def _build_events_df(self):
+        # vertically concatenate all symbols and their events
+        events_df = pd.concat(
+            [self._build_df_for_symbol(symbol) for symbol in self.data_cfg.symbols]
+        )
+
+        # join event_title & event_text columns
+        events_df["event"] = events_df["event_type"] + " " + events_df["event_text"]
+        events_df = events_df.drop(["event_type", "event_text"], axis=1)
+        events_df = events_df.astype({"event": object})
+
+        # We have to incorporate the feedback at the end of the event embedding vector
+        # pylint: disable=unnecessary-lambda
+        events_df["event"] = events_df.apply(
+            lambda row: self._create_embedding_with_feedback(row), axis=1
+        )
+
+        # We incorporated the feedback at the end of the event embedding matrix
+        # so we don't need the single metrics anymore
+        events_df = events_df.drop(self.data_cfg.feedback_metrics, axis=1)
+
+        # build multi-index dataframe per date and symbol to later generate tensors
+        # with the right shape easily
+        #
+        # The grouping with gt_trend is unnecessary here, because it holds the same grouping
+        # information as 'date' and 'symbol' combined. We have to list it here in order
+        # to copy it over to the new events_df dataframe
+        events_df = (
+            events_df.groupby(["date", "symbol", "gt_trend"])["event"]
+                .apply(list)
+                .reset_index()
+        )
+        events_df.set_index(["date", "symbol"], inplace=True)
+
+        return events_df
