@@ -80,6 +80,6 @@ def data_cfg_is_cached():
     return os.path.exists(DATA_CFG_CACHING_PATH)
 
 
-def deserialize_data_cfg():
+def deserialize_data_cfg() -> DataConfiguration:
     """ Deserialize safed data configuration"""
     return deserialize_cfg(DATA_CFG_CACHING_PATH)

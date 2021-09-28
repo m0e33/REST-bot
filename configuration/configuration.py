@@ -12,10 +12,10 @@ class HyperParameterConfiguration:
     """ Class for storing hyper parameters"""
 
     num_epochs: int = 1000
-    attn_cnt: int = 3
-    lstm_units_cnt: int = 40
-    sliding_window_size: int = 30
-    offset_days: int = 3
+    attn_cnt: int = 4
+    lstm_units_cnt: int = 80
+    sliding_window_size: int = 10
+    offset_days: int = 2
 
 
 @dataclass  # type: ignore
