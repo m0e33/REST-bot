@@ -142,7 +142,8 @@ class KubeflowAdapter(KubeflowServe):
                 with tf.GradientTape() as tape:
                     predictions = model(x, training=True)
                     loss = compute_loss(y, predictions)
-
+                    tf.print(y)
+                    tf.print(predictions)
                 grads = tape.gradient(loss, model.trainable_variables)
                 optimizer.apply_gradients(zip(grads, model.trainable_variables))
                 train_rmse.update_state(y, predictions)
