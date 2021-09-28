@@ -121,6 +121,7 @@ class KubeflowAdapter(KubeflowServe):
 
         with strategy.scope():
             model = RESTNet(hp_cfg, train_cfg)
+            #model.summary()
             optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
             loss_object = tf.keras.losses.MeanAbsoluteError(reduction=tf.keras.losses.Reduction.NONE)
 
@@ -128,7 +129,6 @@ class KubeflowAdapter(KubeflowServe):
                 per_example_loss = loss_object(labels, predictions)
                 return tf.nn.compute_average_loss(per_example_loss, global_batch_size=global_batch_size)
 
-            train_loss = tf.keras.metrics.Mean('train_loss', dtype=tf.float32)
             val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
             test_loss = tf.keras.metrics.Mean('test_loss', dtype=tf.float32)
 
@@ -147,7 +147,6 @@ class KubeflowAdapter(KubeflowServe):
                     loss = compute_loss(y, predictions)
                 grads = tape.gradient(loss, model.trainable_variables)
                 optimizer.apply_gradients(zip(grads, model.trainable_variables))
-                train_loss.update_state(loss)
                 train_rmse.update_state(y, predictions)
                 train_mae.update_state(y, predictions)
                 train_mape.update_state(y, predictions)
@@ -186,7 +185,7 @@ class KubeflowAdapter(KubeflowServe):
             if epoch == 10:
                 tf.profiler.experimental.start(f"logs/profiler/{current_time}")
 
-            if epoch % 100 == 0 | epoch == 1:
+            if epoch % 100 == 0 or epoch == 1:
                 path = f"{self.get_model_path()}-{epoch:04d}"
                 logger.info(f"saving model to '{path}'")
                 model.save_weights(path)
@@ -219,7 +218,10 @@ class KubeflowAdapter(KubeflowServe):
                 tf.summary.scalar('train_mape', train_mape.result(), step=epoch)
 
             logger.info(f"Epoch {epoch}, loss: {train_loss}, val_loss: {val_loss.result()}")
+            test_loss.reset_states()
             val_loss.reset_states()
+            train_mae.reset_states()
+            train_mape.reset_states()
 
         # TEST LOOP
         for inputs in test_dist_dataset:
@@ -228,7 +230,7 @@ class KubeflowAdapter(KubeflowServe):
         # save final model
         return TrainingResult(
             models=[model],
-            evaluation={'test_loss': test_loss.result(), 'val_loss': val_loss.result(), 'train_loss': train_loss},
+            evaluation={'test_loss': test_loss.result(), 'val_loss': val_loss.result()},
             hyperparameters={}
         )
 
