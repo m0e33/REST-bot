@@ -240,7 +240,7 @@ class KubeflowAdapter(KubeflowServe):
 
     def predict_model(self, model: RESTNet, data: list) -> any:
         """Predict using the model for given ndarray."""
-        prediction = model(x=data)
+        prediction = model.predict(x=data)
 
         return prediction
 

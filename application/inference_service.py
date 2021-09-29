@@ -1,4 +1,5 @@
 from data.data_store import DataStore
+import os
 from datetime import datetime, timedelta
 
 from model.rest_kubeflow_adapter import KubeflowAdapter
@@ -6,10 +7,14 @@ from configuration.data_configuration import deserialize_data_cfg, DataConfigura
 from configuration.configuration import deserialize_hp_cfg, deserialize_train_cfg
 from data.preprocesser import Preprocessor
 
+class InferenceEnvironmentException(Exception):
+    pass
+
 class InferenceService:
     """Class that encapsulates prediction"""
 
     def __init__(self):
+        self._environment_check()
         self.model = KubeflowAdapter(num_gpus=0)
         self.hp_cfg = deserialize_hp_cfg()
         self.train_cfg = deserialize_train_cfg()
@@ -42,7 +47,8 @@ class InferenceService:
 
         ds_inference = DataStore(data_cfg_inference, for_inference=True)
         ds_inference.build()
-        prepro_inference = Preprocessor(ds_inference, data_cfg_inference, self.train_cfg, self.hp_cfg, for_inference=True)
+        prepro_inference = Preprocessor(ds_inference, data_cfg_inference, self.train_cfg, self.hp_cfg,
+                                        for_inference=True)
         input = prepro_inference.get_inference_input()
 
         return input
@@ -53,3 +59,25 @@ class InferenceService:
         start_date_str = datetime.strftime(start_date, self.data_cfg_training.DATE_FORMAT)
 
         return start_date_str
+
+    def _environment_check(self):
+        try:
+            deserialize_data_cfg()
+        except Exception as e:
+            raise InferenceEnvironmentException("No data configuration stored on alongside model")
+
+        try:
+            deserialize_hp_cfg()
+        except Exception as e:
+            raise InferenceEnvironmentException("No hyperparameter configuration stored on alongside model")
+
+        try:
+            deserialize_train_cfg()
+        except Exception as e:
+            raise InferenceEnvironmentException("No training configuration stored on alongside model")
+
+        if len(os.listdir(Preprocessor.EMBEDDING_MODEL_CACHE_PATH)) == 0:
+            raise InferenceEnvironmentException("No word embedding model stored on alongside model")
+
+        if not os.path.exists("model/weights/RESTNet.index"):
+            raise InferenceEnvironmentException("No model stored for inference")

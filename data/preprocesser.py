@@ -152,6 +152,7 @@ class Preprocessor:
     PATH_FOR_TRAIN_NP = "data/datasets/train/"
     PATH_FOR_VAL_NP = "data/datasets/val/"
     PATH_FOR_TEST_NP = "data/datasets/test/"
+    EMBEDDING_MODEL_CACHE_PATH = "data/word_embedding/model"
 
     def get_inference_input(self):
         """builds np matrix for model input from data configuration"""
@@ -253,16 +254,16 @@ class Preprocessor:
         if not for_inference and self._old_preprocessing_result_can_be_reused:
             return
 
-        embedding_model_cache_path = "data/word_embedding/model"
+
         # In case of inference, there should be a compiled model for word embeddings derived from the training
         # dataset vocabulary.
         # Check for cached model, if so, set it, if not error / build vectorizer from whole database.
         if for_inference:
-            if len(os.listdir(embedding_model_cache_path)) != 0:
+            if len(os.listdir(self.EMBEDDING_MODEL_CACHE_PATH)) != 0:
                 # load vectorizer and word embedding
-                self.embedding_model = tf.keras.models.load_model(embedding_model_cache_path)
+                self.embedding_model = tf.keras.models.load_model(self.EMBEDDING_MODEL_CACHE_PATH)
 
-                from_disk = pickle.load(open(embedding_model_cache_path + "/vectorizer.pkl", "rb"))
+                from_disk = pickle.load(open(self.EMBEDDING_MODEL_CACHE_PATH + "/vectorizer.pkl", "rb"))
                 self._vectorizer = TextVectorization.from_config(from_disk['config'])
                 # You have to call `adapt` with some dummy data (BUG in Keras)
                 self._vectorizer.adapt(tf.data.Dataset.from_tensor_slices(["xyz"]))
@@ -291,11 +292,11 @@ class Preprocessor:
         self.embedding_model.compile()
 
         # cache word embedding model + vectorizer
-        Path(embedding_model_cache_path).mkdir(parents=True, exist_ok=True)
-        self.embedding_model.save(embedding_model_cache_path)
+        Path(self.EMBEDDING_MODEL_CACHE_PATH).mkdir(parents=True, exist_ok=True)
+        self.embedding_model.save(self.EMBEDDING_MODEL_CACHE_PATH)
         pickle.dump({'config': self._vectorizer.get_config(),
                      'weights': self._vectorizer.get_weights()}
-                    , open(embedding_model_cache_path + "/vectorizer.pkl", "wb"))
+                    , open(self.EMBEDDING_MODEL_CACHE_PATH + "/vectorizer.pkl", "wb"))
 
     def _build_date_dataframe(self):
         dates = pd.date_range(self.data_cfg.start_str, self.data_cfg.end_str, freq="D")
