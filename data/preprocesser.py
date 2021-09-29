@@ -79,25 +79,44 @@ def dataset_np_has_been_build(base_path_to_ds):
     )
 
 
-class Preprocessor:
+# Wrapper class for memory leaking generator found here: https://github.com/tensorflow/tensorflow/issues/37653
+class TfDataset(object):
+    def __init__(self):
+        self.py_func_set_to_cleanup = set()
 
+    def from_generator(self, generator, output_signature, args=None):
+        if not hasattr(tf.compat.v1.get_default_graph(), '_py_funcs_used_in_graph'):
+            tf.compat.v1.get_default_graph()._py_funcs_used_in_graph = []
+        py_func_set_before = set(tf.compat.v1.get_default_graph()._py_funcs_used_in_graph)
+        result = tf.data.Dataset.from_generator(generator, args=args, output_signature=output_signature)
+        py_func_set_after = set(tf.compat.v1.get_default_graph()._py_funcs_used_in_graph) - py_func_set_before
+        self.py_func_set_to_cleanup |= py_func_set_after
+        return result
+
+    def cleanup(self):
+        new_py_funcs = set(tf.compat.v1.get_default_graph()._py_funcs_used_in_graph) - self.py_func_set_to_cleanup
+        tf.compat.v1.get_default_graph()._py_funcs_used_in_graph = list(new_py_funcs)
+        self.py_func_set_to_cleanup = set()
+
+
+class Preprocessor:
     """Preprocess data for model usage"""
 
     # pylint: disable=too-many-instance-attributes
 
     def __init__(
-        self,
-        data_store: DataStore,
-        data_cfg: DataConfiguration,
-        train_cfg: TrainConfiguration,
-        hp_cfg: HyperParameterConfiguration,
-        for_inference: bool = False
+            self,
+            data_store: DataStore,
+            data_cfg: DataConfiguration,
+            train_cfg: TrainConfiguration,
+            hp_cfg: HyperParameterConfiguration,
+            for_inference: bool = False
     ):
         self.data_store = data_store
         self.data_cfg = data_cfg
 
         assert (
-            len(set(self.data_cfg.feedback_metrics) - set(PriceDataInfo.fields)) == 0
+                len(set(self.data_cfg.feedback_metrics) - set(PriceDataInfo.fields)) == 0
         ), "API data price fields do not contain all fields that are configured as feedback metrics"
 
         self.train_cfg = train_cfg
@@ -221,10 +240,12 @@ class Preprocessor:
         if not self.dataset_spec:
             self.dataset_spec = self._build_dataset_spec(base_ds_path)
 
-        return tf.data.Dataset.from_generator(
+        tf_dataset = TfDataset()
+
+        return tf_dataset.from_generator(
             self._dataset_generator,
-            args=[base_ds_path],
             output_signature=self.dataset_spec,
+            args=[base_ds_path]
         ).batch(global_batch_size).prefetch(AUTOTUNE)
 
     def _prepare_word_embedding(self, for_inference):
@@ -274,7 +295,7 @@ class Preprocessor:
         self.embedding_model.save(embedding_model_cache_path)
         pickle.dump({'config': self._vectorizer.get_config(),
                      'weights': self._vectorizer.get_weights()}
-                    ,open(embedding_model_cache_path + "/vectorizer.pkl", "wb"))
+                    , open(embedding_model_cache_path + "/vectorizer.pkl", "wb"))
 
     def _build_date_dataframe(self):
         dates = pd.date_range(self.data_cfg.start_str, self.data_cfg.end_str, freq="D")
@@ -350,8 +371,8 @@ class Preprocessor:
         indicator_next_day = symbol_feedback_df.shift(-1).replace(np.nan, 0)
         indicator_current_day = symbol_feedback_df
         symbol_feedback_df = ((
-            indicator_next_day - indicator_current_day
-        ) / indicator_current_day ) * 100
+                                      indicator_next_day - indicator_current_day
+                              ) / indicator_current_day) * 100
 
         symbol_feedback_df = symbol_feedback_df.join(symbol_price_df["date"])
 
@@ -366,8 +387,8 @@ class Preprocessor:
                 field
                 for field in PriceDataInfo.fields
                 if field != "date"
-                and field != "gt_trend"
-                and field not in self.data_cfg.feedback_metrics
+                   and field != "gt_trend"
+                   and field not in self.data_cfg.feedback_metrics
             ],
             axis=1,
         )
@@ -494,9 +515,9 @@ class Preprocessor:
         new_configs = self._hp_cfg_has_changed() or self._train_cfg_has_changed()
 
         return (
-            np_dataset_matrices_have_been_build
-            and not new_configs
-            and self.data_store.old_data_can_be_reused
+                np_dataset_matrices_have_been_build
+                and not new_configs
+                and self.data_store.old_data_can_be_reused
         )
 
     def _hp_cfg_has_changed(self):

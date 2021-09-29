@@ -204,7 +204,7 @@ class KubeflowAdapter(KubeflowServe):
             for inputs in val_dist_dataset:
                 distributed_val_step(inputs)
 
-            if epoch == 5:
+            if epoch == 6:
                 tf.profiler.experimental.stop()
 
             step_duration = time.time() - start_time
@@ -240,7 +240,7 @@ class KubeflowAdapter(KubeflowServe):
 
     def predict_model(self, model: RESTNet, data: list) -> any:
         """Predict using the model for given ndarray."""
-        prediction = model.predict(x=data)
+        prediction = model(x=data)
 
         return prediction
 

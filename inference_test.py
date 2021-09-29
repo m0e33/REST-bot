@@ -5,3 +5,4 @@ if __name__ == '__main__':
     service = InferenceService()
 
     result = service.get_prediction(["TSLA", "NFLX"], "2021-09-01")
+    print(result)
