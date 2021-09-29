@@ -92,11 +92,11 @@ class KubeflowAdapter(KubeflowServe):
         hp_cfg = HyperParameterConfiguration()
         data_cfg = DataConfiguration(
             symbols=load_symbols(limit=None),
-            start="2019-01-01",
+            start="2019-08-01",
             end="2021-01-01",
             feedback_metrics=["open", "close", "high", "low", "vwap"],
-            stock_news_fetch_limit=20000,
-            events_per_day_limit=10
+            stock_news_fetch_limit=10000,
+            events_per_day_limit=5
         )
         logger.info(f"Train configuration: {str(train_cfg)}")
         logger.info(f"Hyperparameter configuration: {str(hp_cfg)}")
@@ -178,7 +178,7 @@ class KubeflowAdapter(KubeflowServe):
         def distributed_test_step(dataset_inputs):
             return strategy.run(test_step, args=(dataset_inputs,))
 
-        tf.profiler.experimental.start(f"logs/profiler/{current_time}")
+        #tf.profiler.experimental.start(f"logs/profiler/{current_time}")
         for epoch in range(hp_cfg.num_epochs):
             logger.info(f"Started Epoch {epoch + 1} from {hp_cfg.num_epochs}")
             start_time = time.time()
@@ -187,7 +187,7 @@ class KubeflowAdapter(KubeflowServe):
                 # model needs to be build or called at least once for summary to work
                 model.summary()
 
-            if (epoch % 100 == 0 and not epoch == 0) or epoch == 1:
+            if (epoch % 10 == 0 and not epoch == 0) or epoch == 1:
                 path = f"{self.get_model_path()}-{epoch:04d}"
                 logger.info(f"saving model to '{path}'")
                 model.save_weights(path)
@@ -203,7 +203,6 @@ class KubeflowAdapter(KubeflowServe):
             # VALIDATION LOOP
             for inputs in val_dist_dataset:
                 distributed_val_step(inputs)
-
 
             step_duration = time.time() - start_time
             progress.step(step_duration)
@@ -227,7 +226,7 @@ class KubeflowAdapter(KubeflowServe):
             train_mape.reset_states()
             train_mse.reset_states()
 
-        tf.profiler.experimental.stop()
+        #tf.profiler.experimental.stop()
         # TEST LOOP
         for inputs in test_dist_dataset:
             distributed_test_step(inputs)
