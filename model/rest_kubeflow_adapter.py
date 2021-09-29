@@ -125,6 +125,7 @@ class KubeflowAdapter(KubeflowServe):
                 per_example_loss = loss_object(labels, predictions)
                 return tf.nn.compute_average_loss(per_example_loss, global_batch_size=global_batch_size)
 
+            train_loss_comp = tf.keras.metrics.Mean('train_loss_comp', dtype=tf.float32)
             val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
             test_loss = tf.keras.metrics.Mean('test_loss', dtype=tf.float32)
 
@@ -144,6 +145,7 @@ class KubeflowAdapter(KubeflowServe):
                     loss = compute_loss(y, predictions)
                 grads = tape.gradient(loss, model.trainable_variables)
                 optimizer.apply_gradients(zip(grads, model.trainable_variables))
+                train_loss_comp.update_state(loss)
                 train_rmse.update_state(y, predictions)
                 train_mae.update_state(y, predictions)
                 train_mape.update_state(y, predictions)
@@ -176,12 +178,10 @@ class KubeflowAdapter(KubeflowServe):
         def distributed_test_step(dataset_inputs):
             return strategy.run(test_step, args=(dataset_inputs,))
 
+        tf.profiler.experimental.start(f"logs/profiler/{current_time}")
         for epoch in range(hp_cfg.num_epochs):
             logger.info(f"Started Epoch {epoch + 1} from {hp_cfg.num_epochs}")
             start_time = time.time()
-
-            if epoch == 0:
-                tf.profiler.experimental.start(f"logs/profiler/{current_time}")
 
             if epoch == 1:
                 # model needs to be build or called at least once for summary to work
@@ -204,8 +204,6 @@ class KubeflowAdapter(KubeflowServe):
             for inputs in val_dist_dataset:
                 distributed_val_step(inputs)
 
-            if epoch == 6:
-                tf.profiler.experimental.stop()
 
             step_duration = time.time() - start_time
             progress.step(step_duration)
@@ -214,6 +212,7 @@ class KubeflowAdapter(KubeflowServe):
             with train_summary_writer.as_default():
                 tf.summary.scalar('step_duration', step_duration, step=epoch)
                 tf.summary.scalar('train_loss', train_loss, step=epoch)
+                tf.summary.scalar('train_loss_comp', train_loss_comp.result(), step=epoch)
                 tf.summary.scalar('val_loss', val_loss.result(), step=epoch)
                 tf.summary.scalar('train_rmse', train_rmse.result(), step=epoch)
                 tf.summary.scalar('train_mse', train_mse.result(), step=epoch)
@@ -222,11 +221,13 @@ class KubeflowAdapter(KubeflowServe):
 
             logger.info(f"Epoch {epoch}, loss: {train_loss}, val_loss: {val_loss.result()}")
             test_loss.reset_states()
+            train_loss_comp.reset_states()
             val_loss.reset_states()
             train_mae.reset_states()
             train_mape.reset_states()
             train_mse.reset_states()
 
+        tf.profiler.experimental.stop()
         # TEST LOOP
         for inputs in test_dist_dataset:
             distributed_test_step(inputs)
