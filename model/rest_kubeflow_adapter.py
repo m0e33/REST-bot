@@ -180,7 +180,7 @@ class KubeflowAdapter(KubeflowServe):
             logger.info(f"Started Epoch {epoch + 1} from {hp_cfg.num_epochs}")
             start_time = time.time()
 
-            if epoch == 10:
+            if epoch == 0:
                 tf.profiler.experimental.start(f"logs/profiler/{current_time}")
 
             if epoch == 1:
@@ -204,7 +204,7 @@ class KubeflowAdapter(KubeflowServe):
             for inputs in val_dist_dataset:
                 distributed_val_step(inputs)
 
-            if epoch == 20:
+            if epoch == 5:
                 tf.profiler.experimental.stop()
 
             step_duration = time.time() - start_time
