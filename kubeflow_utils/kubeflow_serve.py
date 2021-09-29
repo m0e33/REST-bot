@@ -38,7 +38,7 @@ def get_gcs_data_folder(model_file):
 
 class KubeflowServe(ABC):
     def __init__(self):
-        self.trained_models = None
+        self.trained_model = None
         self.artifact_store = ArtifactStore()
 
     @abstractmethod
@@ -50,7 +50,7 @@ class KubeflowServe(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def predict_model(self, model: RESTNet, **kwargs) -> any:
+    def predict_model(self, model: RESTNet, data: list) -> any:
         """
 
         :rtype: should return prediction
@@ -127,15 +127,12 @@ class KubeflowServe(ABC):
             training_framework_version=self.get_metadata().training_framework_version,
         )
 
-    def predict(self, features: Dict, feature_names=None, **kwargs) -> any:
-        logger.info('predict')
-        logger.info('features:')
-        for key in features.keys():
-            logger.info(f'{key}: {features[key]}')
+    def predict(self, features: List) -> any:
+        logger.info(f"Prediction started with input shape: {str(features[0].shape)}")
 
-        self.trained_models = self.load_model()
+        self.trained_model = self.load_model()
 
-        result = self.predict_model(model=self.trained_models, **features)
+        result = self.predict_model(model=self.trained_model, data=features)
         logger.info('Predicted result: ')
         logger.info(result)
 

@@ -237,11 +237,19 @@ class Preprocessor:
         # dataset vocabulary.
         # Check for cached model, if so, set it, if not error / build vectorizer from whole database.
         if for_inference:
-            if len(os.listdir(embedding_model_cache_path)) == 0:
+            if len(os.listdir(embedding_model_cache_path)) != 0:
+                # load vectorizer and word embedding
                 self.embedding_model = tf.keras.models.load_model(embedding_model_cache_path)
+
+                from_disk = pickle.load(open(embedding_model_cache_path + "/vectorizer.pkl", "rb"))
+                self._vectorizer = TextVectorization.from_config(from_disk['config'])
+                # You have to call `adapt` with some dummy data (BUG in Keras)
+                self._vectorizer.adapt(tf.data.Dataset.from_tensor_slices(["xyz"]))
+                self._vectorizer.set_weights(from_disk['weights'])
+
                 return
             else:
-                raise("Word embedding model is not cached from previous dataset, aborting inference.")
+                raise Exception("Word embedding model is not cached from previous dataset, aborting inference.")
 
         self._set_vectorizer()
 
@@ -261,9 +269,12 @@ class Preprocessor:
         self.embedding_model.add(embedding)
         self.embedding_model.compile()
 
-        # cache word embedding model
+        # cache word embedding model + vectorizer
         Path(embedding_model_cache_path).mkdir(parents=True, exist_ok=True)
         self.embedding_model.save(embedding_model_cache_path)
+        pickle.dump({'config': self._vectorizer.get_config(),
+                     'weights': self._vectorizer.get_weights()}
+                    ,open(embedding_model_cache_path + "/vectorizer.pkl", "wb"))
 
     def _build_date_dataframe(self):
         dates = pd.date_range(self.data_cfg.start_str, self.data_cfg.end_str, freq="D")
@@ -507,7 +518,8 @@ class Preprocessor:
         dates_count = len(events_df.groupby(level=0))
         symbols_count = len(events_df.groupby(level=1))
 
-        assert sliding_window_length < dates_count, (
+        # In inference sliding window length = dates_count -> <=
+        assert sliding_window_length <= dates_count, (
             f"sliding window length ({sliding_window_length}) "
             f"does exceed date count ({dates_count}) in dataset."
         )

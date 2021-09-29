@@ -55,14 +55,19 @@ class DataStore:
 
     STORAGE_PATH = "./data/storage/"
 
-    def __init__(self, data_cfg: DataConfiguration) -> None:
+    def __init__(self, data_cfg: DataConfiguration, for_inference: bool = False) -> None:
         if not os.path.exists(self.STORAGE_PATH):
             os.mkdir(self.STORAGE_PATH)
         self.api = APIAdapter()
         self.data_cfg = data_cfg
-        self.old_data_can_be_reused = self._data_config_has_not_been_changed()
-        logger.info("Data store reusable (from what we can tell from configs): " + str(self.old_data_can_be_reused))
-        serialize_data_cfg(self.data_cfg)
+
+        self.old_data_can_be_reused = False
+        if not for_inference:
+            self.old_data_can_be_reused = self._data_config_has_not_been_changed()
+            logger.info("Data store reusable (from what we can tell from configs): " + str(self.old_data_can_be_reused))
+            serialize_data_cfg(self.data_cfg)
+        else:
+            logger.info("Data Store in 'inference' mode, no caching of configurations")
 
         self._basic_data_info = {
             DataType.PRICE_DATA: PriceDataInfo(DataStore.STORAGE_PATH, self.api, self.data_cfg),
