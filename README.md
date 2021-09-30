@@ -1,9 +1,17 @@
 # REST-bot
 
 ## Getting Started
-setup for training.
-setup for inference.
-prerequesites for inference.
+### Training
+- Python version
+- Create virtual environment
+- Pip install requirements
+- configure symbols
+- configure training parameters
+- python main.py
+
+### Inference
+- Utilize inference service
+- Run endpoint with flask run (export priorly)
 
 ## Abstract
 Stock trend forecasting, aiming at predicting the stock future trends, is crucial for investors to seek maximized profits from the stock market. Many event-driven methods utilized the events extracted from news, social media, and discussion board to forecast the stock trend in recent years. However, existing event-driven methods have some shortcomings, one of which is overlooking the influence of event information differentiated by the stock-dependent properties. Our model tries to prevent exactly that by learning the behavior of stocks in different contexts.
@@ -60,7 +68,7 @@ So, in summary, we have the following input shapes: [30, 50, 10, 50, 300].
 
 ![](https://github.com/m0e33/REST-bot/blob/report/assets/image5.jpg?raw=true)
 
-The ground truth looks much simpler. Since we only want to predict the relative price range of the next day for each symbol, this is only 3 dimensions. 
+The ground truth looks much simpler. Since we only want to predict the relative price change of the next day for each symbol, this is only 3 dimensions. 
 
 ![](https://github.com/m0e33/REST-bot/blob/report/assets/image6.jpg?raw=true)
 
@@ -70,20 +78,58 @@ To create the training data, we build sliding windows with a stride of 1. Since 
 
 
 ### 2.2. Architecture
-see slides
+
+The models architecture is highly custom with each part serving its own unique function.
+It can be divided into four parts: An event-information encoder, a stock-context encoder, a stock-dependent influence 
+and a prediction layer. The original paper includes one more module thats part of this architecture, which we haven't been able to incorporate yet, and for now briefly describe it in the future work section. 
+Each of these layers work on all symbols and their respective events simultaneously, however,
+in the following sub-sections, we go through them from the perspective of one symbol.
+
+![](report/architecture-overview.png?raw=true)
+
+#### 2.2.1 Event Information Encoder
+
+The event information encoders job is to build a expressive representation of the information that exists right
+as the day we want to predict takes place. It therefore utilizes an attention mechanism as well as a small LSTM net.
+
+![](report/architecture-event-information-encoder.png?raw=true)
+
+The input to this component are the last three days with their events for one symbol.
+The attention mechanism then gives different attention values to each word in the events content, with regards to the event type (PRESS or NEWS etc.). Configurable here are the number of attention heads, (ref attention) and the nunmber of hidden LSTM units.
+The LSTM then flattens the sequence of weighted events over the last three days into one single dimension representation vector.
+It thereby learns and incorporates how long one event's effect lasts on the price development. 
+An event that has occurred three days ago might not have the same impact as an event which took place yesterday.
+
+#### 2.2.2 Stock Context Encoder
+Parallel to the event-information encoder, works the stock context encoder. Its job is to encode the stocks events over the past 30 days alongside its price development over this time span.
+It uses the same mechanics as the event-information encoder - an attention mechanism and a series of LSTMs.
+The events of the past 30 days are weighted with learned attention filters, and then passed through an LSTM - as is the stocks price development information - where they are squashed into one single dimension representing information about the kind of events, how long they lasted and their respective price change.
+
+#### 2.2.3 Stock Dependent Influence
+
+![](report/architecture-stock-dependent-influence.png?raw=true)
+
+The stock dependent influence now takes the event information for the current day and the event information over the past 30 days as well as their impact on the stock's price change, and calculates / learns the impact of the current event information on the current price change.
+It does so, by feeding the two representations through one dense layer. The output is a representation of the strength of the impact of current day's information landscape concerning the symbol on the price development of this symbol.
+
+#### 2.2.4 Prediction
+The final layer now takes care of converting the strength of the impact into a real relative price change prediction.
+
+![](report/architecture-price prediction.png?raw=true)
+
+
 ## 3. Evaluation
 Training stats
-## 4. Conclusion
-spannendes projekt, 
-## 5. Future Work
-### 5.1 Graph Convolution
-A possible extension would be to learn the opposite side influence of stocks with a graph convolution and to let it flow into the calculation. The paper implementation has shown that even better results can be achieved. The basis of the Graph Convolution would be to place the companies in different relations, for example relations like "same industry", "same shareholder", upstream and downstream relations etc.. Through the different relations a stock graph can be built, which is defined as follows: 
+
+## 4. Future Work
+### 4.1 Graph Convolution
+A possible extension would be to learn the opposite side influence of stocks with a graph convolution and to let it affect the calculation. The paper implementation has shown that even better results can be achieved. The basis of the Graph Convolution would be to place the companies in different relations, for example relations like "same industry", "same shareholder", upstream and downstream relations etc.. Through the different relations a stock graph can be built, which is defined as follows: 
 
 Stock graph is defined as a directed graph <a href="https://www.codecogs.com/eqnedit.php?latex=G=\langle\mathcal{S},&space;\mathcal{R},&space;\mathcal{A}\rangle" target="_blank"><img src="https://latex.codecogs.com/gif.latex?G=\langle\mathcal{S},&space;\mathcal{R},&space;\mathcal{A}\rangle" title="G=\langle\mathcal{S}, \mathcal{R}, \mathcal{A}\rangle" /></a>, where S denote the set of stocks in the market and R is the set of relations between two stocks. <a href="https://www.codecogs.com/eqnedit.php?latex=\mathcal{A}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\mathcal{A}" title="\mathcal{A}" /></a> is the set of adjacent matrices. For an adjacent matrix <a href="https://www.codecogs.com/eqnedit.php?latex=A^{r}&space;\in&space;\mathcal{A}(r&space;\in&space;\mathcal{R}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?A^{r}&space;\in&space;\mathcal{A}(r&space;\in&space;\mathcal{R}" title="A^{r} \in \mathcal{A}(r \in \mathcal{R}" /></a> and <a href="https://www.codecogs.com/eqnedit.php?latex=A^{r}&space;\in&space;\mathbb{R}|\mathcal{S}|&space;\times|\mathcal{S}|)" target="_blank"><img src="https://latex.codecogs.com/gif.latex?A^{r}&space;\in&space;\mathbb{R}|\mathcal{S}|&space;\times|\mathcal{S}|)" title="A^{r} \in \mathbb{R}|\mathcal{S}| \times|\mathcal{S}|)" /></a> of relation <a href="https://www.codecogs.com/eqnedit.php?latex=r,&space;A_{i&space;j}^{r}=1" target="_blank"><img src="https://latex.codecogs.com/gif.latex?r,&space;A_{i&space;j}^{r}=1" title="r, A_{i j}^{r}=1" /></a> means there is a relation <a href="https://www.codecogs.com/eqnedit.php?latex=r" target="_blank"><img src="https://latex.codecogs.com/gif.latex?r" title="r" /></a> from stocks <a href="https://www.codecogs.com/eqnedit.php?latex=s_j" target="_blank"><img src="https://latex.codecogs.com/gif.latex?s_j" title="s_j" /></a> to stock <a href="https://www.codecogs.com/eqnedit.php?latex=s_i" target="_blank"><img src="https://latex.codecogs.com/gif.latex?s_i" title="s_i" /></a> and <a href="https://www.codecogs.com/eqnedit.php?latex=A_{i&space;j}^{r}=0" target="_blank"><img src="https://latex.codecogs.com/gif.latex?A_{i&space;j}^{r}=0" title="A_{i j}^{r}=0" /></a> indicates there is no a relation <a href="https://www.codecogs.com/eqnedit.php?latex=r" target="_blank"><img src="https://latex.codecogs.com/gif.latex?r" title="r" /></a> from stock <a href="https://www.codecogs.com/eqnedit.php?latex=s_j" target="_blank"><img src="https://latex.codecogs.com/gif.latex?s_j" title="s_j" /></a> to stock <a href="https://www.codecogs.com/eqnedit.php?latex=s_i" target="_blank"><img src="https://latex.codecogs.com/gif.latex?s_i" title="s_i" /></a>.
 
 ![](https://github.com/m0e33/REST-bot/blob/report/assets/image8.jpg?raw=true)
 
-### 5.2 Different Contexts
+### 4.2 Different Contexts
 Crypto currencies, andere Zeitauflösung
 
 ---
