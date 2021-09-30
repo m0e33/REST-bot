@@ -15,7 +15,7 @@ class InferenceService:
 
     def __init__(self):
         self._environment_check()
-        self.model = KubeflowAdapter(num_gpus=0)
+        self.model = KubeflowAdapter(num_gpus=0, for_inference=True)
         self.hp_cfg = deserialize_hp_cfg()
         self.train_cfg = deserialize_train_cfg()
         self.data_cfg_training = deserialize_data_cfg()
@@ -29,7 +29,11 @@ class InferenceService:
         input = self._build_input_tensor(symbols, date)
 
         # Model needs batch as outer most dimension, hence single array brackets
-        result = self.model.predict([input])
+        prediction = self.model.predict([input])
+
+        result = {}
+        for idx, symbol in enumerate(symbols):
+            result[symbol] = prediction[idx][0]
 
         return result
 

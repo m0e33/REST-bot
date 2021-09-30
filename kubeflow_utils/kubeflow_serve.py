@@ -130,7 +130,8 @@ class KubeflowServe(ABC):
     def predict(self, features: List) -> any:
         logger.info(f"Prediction started with input shape: {str(features[0].shape)}")
 
-        self.trained_model = self.load_model()
+        if not self.trained_model:
+            self.trained_model = self.load_model()
 
         result = self.predict_model(model=self.trained_model, data=features)
         logger.info('Predicted result: ')

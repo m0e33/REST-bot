@@ -31,9 +31,11 @@ current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H꞉%M꞉%S")
 
 class KubeflowAdapter(KubeflowServe):
 
-    def __init__(self, num_gpus: int):
+    def __init__(self, num_gpus: int, for_inference: bool = False):
         super().__init__()
         self.num_gpus = num_gpus
+        if for_inference:
+            self.trained_model = self.load_model()
 
     def download_data_component(self, cloud_path: str, data_path: str):
         """Download data component"""
@@ -240,9 +242,13 @@ class KubeflowAdapter(KubeflowServe):
 
     def predict_model(self, model: RESTNet, data: list) -> any:
         """Predict using the model for given ndarray."""
-        prediction = model.predict(x=data)
 
-        return prediction
+        data = tf.convert_to_tensor(data, dtype=tf.float32)
+        prediction = model(data)
+        prediction = prediction.numpy()
+
+        # since prediction is has shape [1, {num symbols}, 1] which stands for [days, symbols, price] we can strip days.
+        return prediction[0]
 
     def load_model(self):
         # This works as long as train and hyper parameter config are the default values.
@@ -260,5 +266,6 @@ class KubeflowAdapter(KubeflowServe):
 
         # load_status.assert_consumed()
         load_status.assert_existing_objects_matched()
+        logger.info("Loading model finished.")
 
         return model
