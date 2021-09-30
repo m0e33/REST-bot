@@ -9,7 +9,7 @@ So first, create a virtual environment, activate it and install the required dep
 ```console
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -r requirements_jazzy.txt
+python3 -m pip install -r requirements.txt
 ```
 
 This project was planned to run on a bakdata kubeflow cluster within the google cloud environments, and so, currently  - even if not using the cloud environment - you have to set the google cloud authentication environment variables when running the main script.
@@ -196,7 +196,7 @@ The final layer now takes care of converting the strength of the impact into a r
 
 
 ### 2.3 Training
-We implemented a distributed strategy to utilize all CPU / GPU devices provided by the host for training. This can be experienced in this [screencast]({video-url} "Link Title")
+We implemented a distributed strategy to utilize all CPU / GPU devices provided by the host for training. This can be experienced in this [screencast]({https://github.com/m0e33/REST-bot/blob/main/assets/training_run_memory_leak_h.mp4} "Link Title")
 .
 
 #### 2.3.1 Hardware Limits
