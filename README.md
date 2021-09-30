@@ -27,7 +27,16 @@ Technical analysis [10] is a category of methods for stock trend forecasting, wh
 
 According to the efficient market hypothesis [24], people know that an event that happens on a stock would change the stock information of this stock, affecting its stock price. An event can have different sources, for example social media (Twitter, Reddit, Facebook), forums (Yahoo Finance Forum) or news (Google News, Press Releases, Bloomberg News). 
 
-XXX (Hier kann man auch aus den Paper nochmal für jeden Absatz paar Beispielpaper raussuchen)
+Paper examples for technical analysis:
+- Autoregressive Model (linear apporach) [19]
+- ARIMA model (linear apporach) [2]
+- Deep learning [28, 35]
+- LSTM [14]
+
+Paper examples for event driven stock trend forcasting:
+- Hierarchical attention mechanism [15]
+- Knowledge-driven temporal convolutional network [7]
+- Cross-model attention based Hybrid Recurrent Neural Network [39]
 
 ## 2. Approach
 ### 2.1. Data
@@ -79,3 +88,20 @@ Crypto currencies, andere Zeitauflösung
 
 [24] Burton G Malkiel and Eugene F Fama. 1970. Efficient capital markets: A review
 of theory and empirical work. The journal of Finance 25, 2 (1970), 383–417
+
+[19] Lili Li, Shan Leng, Jun Yang, and Mei Yu. 2016. Stock Market Autoregressive Dynamics: A Multinational Comparative Study with Quantile Regression. Math- ematical Problems in Engineering 2016 (2016).
+
+[2] Adebiyi A Ariyo, Adewumi O Adewumi, and Charles K Ayo. 2014. Stock price prediction using the ARIMA model. In 2014 UKSim-AMSS 16th International Conference on Computer Modelling and Simulation. IEEE, 106–112.
+
+[28] Jigar Patel, Sahil Shah, Priyank Thakkar, and Ketan Kotecha. 2015. Predicting stock market index using fusion of machine learning techniques. Expert Systems with Applications 42, 4 (2015), 2162–2172.
+
+[35] Jonathan L Ticknor. 2013. A Bayesian regularized artificial neural network
+for stock market forecasting. Expert Systems with Applications 40, 14 (2013),
+5501–5506.
+
+[14] Sepp Hochreiter and Jürgen Schmidhuber. 1997. Long short-term memory. Neural computation 9, 8 (1997), 1735–1780.
+
+[15] ZiniuHu,WeiqingLiu,JiangBian,XuanzheLiu,andTie-YanLiu.2018.Listening to chaotic whispers: A deep learning framework for news-oriented stock trend prediction. In Proceedings of the Eleventh ACM International Conference on Web Search and Data Mining. ACM, 261–269.
+
+[39] Huizhe Wu, Wei Zhang, Weiwei Shen, and Jun Wang. 2018. Hybrid Deep Se-
+quential Modeling for Social Text-Driven Stock Prediction. In Proceedings of the 27th ACM International Conference on Information and Knowledge Man- agement, CIKM 2018, Torino, Italy, October 22-26, 2018. 1627–1630. https: //doi.org/10.1145/3269206.3269290
