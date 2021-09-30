@@ -8,7 +8,7 @@ prerequesites for inference.
 ## Abstract
 Stock trend forecasting, aiming at predicting the stock future trends, is crucial for investors to seek maximized profits from the stock market. Many event-driven methods utilized the events extracted from news, social media, and discussion board to forecast the stock trend in recent years. However, existing event-driven methods have some shortcomings, one of which is overlooking the influence of event information differentiated by the stock-dependent properties. Our model tries to prevent exactly that by learning the behavior of stocks in different contexts.
 
-# Problem
+## Problem
 We want to predict stock prices using event data. Given the stock-specific information (e.g., the textual information from news and social media, the historical stock price) of stock <a href="https://www.codecogs.com/eqnedit.php?latex=s_i" target="_blank"><img src="https://latex.codecogs.com/gif.latex?s_i" title="s_i" /></a> at date <a href="https://www.codecogs.com/eqnedit.php?latex=t" target="_blank"><img src="https://latex.codecogs.com/gif.latex?t" title="t" /></a>, the goal of stock trend forecasting is to forecast the stock price trend <a href="https://www.codecogs.com/eqnedit.php?latex=d^t_i" target="_blank"><img src="https://latex.codecogs.com/gif.latex?d^t_i" title="d^t_i" /></a>.
 
 Here, we define the stock price trend for stock <a href="https://www.codecogs.com/eqnedit.php?latex=s_i" target="_blank"><img src="https://latex.codecogs.com/gif.latex?s_i" title="s_i" /></a> at date <a href="https://www.codecogs.com/eqnedit.php?latex=t" target="_blank"><img src="https://latex.codecogs.com/gif.latex?t" title="t" /></a> as the stock price change rate of the next day:  
