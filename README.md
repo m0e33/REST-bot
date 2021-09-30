@@ -2,7 +2,7 @@
 
 ## Getting Started
 
-## Prerequisites
+### Prerequisites
 To contribute to this project, train the model or try inference, we recommend to work with python 3.7 and a virtual environment.
 So first, create a virtual environment, activate it and install the required dependencies.
 
@@ -20,13 +20,44 @@ export GOOGLE_APPLICATION_CREDENTIALS=./gcp-bakdata-kubeflow-cluster.json
 
 ### Training
 
-For pre-set training with our configurations, after finishing the steps in prereque
-- Python version
-- Create virtual environment
-- Pip install requirements
-- configure symbols
-- configure training parameters
-- python main.py
+For pre-set training with our configurations, you simply can call the main script and the application will download the necessary data, build the datasets and train the model.
+
+```
+python3 main.py
+```
+
+If you want to configure your own training parameters, you have to take a look into the `configuration/confiuguration.py`. There you can find the training parameter as well as the hyper parameter configuration for training.
+Within the `train_model()` method of the `model/rest_kubeflow_adapter.py` you can find the data configuration, which declares parameter that shape the dataset that is built when running training.
+
+The data configuration needs a list of symbols the model is trained on. This list of symbols can be defined in the `symbols.yml`
+
+We provide a sample configuration here. Some, if not all of these settings, will become clear when reading the following report.
+
+```python
+data_cfg = DataConfiguration(
+    symbols=load_symbols(limit=None),
+    start="2019-01-01",
+    end="2021-01-01",
+    feedback_metrics=["open", "close", "high", "low", "vwap"],
+    stock_news_fetch_limit=20000,
+    events_per_day_limit=10
+)
+
+train_cfg = TrainConfiguration(
+    val_split=0.2,
+    test_split=0.1,
+    batch_size=8
+)
+
+hp_cfg = HyperParameterConfiguration(
+    num_epochs=1000,
+    attn_cnt=4,
+    lstm_units_cnt=80,
+    sliding_window_size=10,
+    offset_days=2
+)
+
+```
 
 ### Inference
 - Utilize inference service
