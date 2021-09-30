@@ -92,7 +92,7 @@ class KubeflowAdapter(KubeflowServe):
         hp_cfg = HyperParameterConfiguration()
         data_cfg = DataConfiguration(
             symbols=load_symbols(limit=None),
-            start="2019-08-01",
+            start="2019-06-01",
             end="2021-01-01",
             feedback_metrics=["open", "close", "high", "low", "vwap"],
             stock_news_fetch_limit=10000,
