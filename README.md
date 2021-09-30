@@ -196,7 +196,7 @@ The final layer now takes care of converting the strength of the impact into a r
 
 
 ## 3. Evaluation
-Training stats
+For the evaluation of different models, we have also implemented a simple threshold strategy (again, the paper "REST: Relational Event-driven Stock Trend Forecasting" was used as a model). This takes the model-predictions as a buy indicator and works as follows. Since our data is at daily granularity, the strategy first sorts the predictions for all symbols in a day. It then buys the first k symbols (those with highest predicted relative price change on the next day) (if an open position does not already exist), and sells the remaining symbols (if an open position exists). At the end of a strategy run, all open positions are closed. This strategy can be used for classical backtesting as well as for paper trading. We calculate an additional 0.15% fee for a buy transaction and 0.25% fee for a sell transaction. 
 
 ## 4. Future Work
 ### 4.1 Graph Convolution
