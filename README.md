@@ -162,14 +162,14 @@ and a prediction layer. The original paper includes one more module thats part o
 Each of these layers work on all symbols and their respective events simultaneously, however,
 in the following sub-sections, we go through them from the perspective of one symbol.
 
-![](report/architecture-overview.png?raw=true)
+![](assets/architecture-overview.png?raw=true)
 
 #### 2.2.1 Event Information Encoder
 
 The event information encoders job is to build an expressive representation of the information that exists right
 as the day we want to predict takes place. It therefore utilizes an attention mechanism as well as a small LSTM net.
 
-![](report/architecture-event-information-encoder.png?raw=true)
+![](assets/architecture-event-information-encoder.png?raw=true)
 
 The input to this component are the last three days with their events for one symbol.
 The attention mechanism then gives different attention values to each word in the events content, with regards to the event type (PRESS or NEWS etc.). Configurable here are the number of attention heads, (ref attention) and the nunmber of hidden LSTM units.
@@ -184,7 +184,7 @@ The events of the past 30 days are weighted with learned attention filters, and 
 
 #### 2.2.3 Stock Dependent Influence
 
-![](report/architecture-stock-dependent-influence.png?raw=true)
+![](assets/architecture-stock-dependent-influence.png?raw=true)
 
 The stock dependent influence now takes the event information for the current day and the event information over the past 30 days as well as their impact on the stock's price change, and calculates / learns the impact of the current event information on the current price change.
 It does so, by feeding the two representations through one dense layer. The output is a representation of the strength of the impact of current day's information landscape concerning the symbol on the price development of this symbol.
@@ -192,11 +192,28 @@ It does so, by feeding the two representations through one dense layer. The outp
 #### 2.2.4 Prediction
 The final layer now takes care of converting the strength of the impact into a real relative price change prediction.
 
-![](report/architecture-price prediction.png?raw=true)
+![](assets/architecture-price-prediction.png?raw=true)
+
+
+### 2.3 Training
+We implemented a distributed strategy to utilize all CPU / GPU devices provided by the host for training. This can be experienced in this [screencast]({video-url} "Link Title")
+.
+
+#### 2.3.1 Hardware Limits
+As seen in 2.1, the dataset for as short as two years of training data (the paper uses eight years), can get very demanding, when loaded all at once into memory.
+We therefore implemented a streaming solution for the sliding window systematic of this dataset. In theory, this should lead to only ~14 GB for two years of events data residing at the same time in memory, 
+while the windows into this timeframe are generated during training and released from memory after training. In practice, we experience a slow increase in memory consumption, which leads to even very potent machines killing the training process. This also can be experienced in the screencast linked above.
+We found, that decreasing the sliding window size, or the amount of days which make up the stock context information, leads to longer training time before beeing killed.
+The furthest we got with an acceptable data configuration was eleven epochs, which took around 45 minutes per epoch.
+
+![](assets/training_step_duration.png?raw=true)
+![](assets/training_train_loss.png?raw=true)
+
 
 
 ## 3. Evaluation
-For the evaluation of different models, we have also implemented a simple threshold strategy (again, the paper "REST: Relational Event-driven Stock Trend Forecasting" was used as a model). This takes the model-predictions as a buy indicator and works as follows. Since our data is at daily granularity, the strategy first sorts the predictions for all symbols in a day. It then buys the first k symbols (those with highest predicted relative price change on the next day) (if an open position does not already exist), and sells the remaining symbols (if an open position exists). At the end of a strategy run, all open positions are closed. This strategy can be used for classical backtesting as well as for paper trading. We calculate an additional 0.15% fee for a buy transaction and 0.25% fee for a sell transaction. 
+For the reasons explained in section 2.3.1, we are currently not able to train a model until sufficient and performant loss values. However, we have implemented a way of evaluating a model, if it happens to be sufficiently trained.
+We implemented a simple threshold strategy (again, the paper "REST: Relational Event-driven Stock Trend Forecasting" was used as a model). This takes the model-predictions as a buy indicator and works as follows. Since our data is at daily granularity, the strategy first sorts the predictions for all symbols in a day. It then buys the first k symbols (those with highest predicted relative price change on the next day) (if an open position does not already exist), and sells the remaining symbols (if an open position exists). At the end of a strategy run, all open positions are closed. This strategy can be used for classical backtesting as well as for paper trading. We calculate an additional 0.15% fee for a buy transaction and 0.25% fee for a sell transaction. 
 
 ## 4. Future Work
 ### 4.1 Graph Convolution
