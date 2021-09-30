@@ -1,4 +1,4 @@
-# REST-bot
+# REST BOT - Predicting stock price trends based on news and press releases.
 
 ## Getting Started
 
@@ -60,8 +60,35 @@ hp_cfg = HyperParameterConfiguration(
 ```
 
 ### Inference
-- Utilize inference service
-- Run endpoint with flask run (export priorly)
+Currently, due to memory leak issues, we are not able to provide a model with decent performance. However, all the infrastructure for model inference has been integrated. 
+Mandatory for inference to work is a _successfull_ training run, whether it trained the model up to a good test loss value or not. A successfull trainings run yields the following assets:
+- Serialized configurations, which determin the configuration for the model to load
+- Serialized model weights, the core for inference
+- Serialized word-embedding weights, an important part for preprocessing.
+#### Locally
+If you want to play around locally with inference, you can use the simple `inference_test.py` script and adapt the parameter given there.
+
+#### Server
+To run inference from a cloud machine, we provide a simple flask server with an inference endpoint.
+For setting this up you have to export the required flask environment variables:
+```console
+export FLASK_ENV=development
+export FLASK_APP=rest_bot_server.py
+```
+
+After that you can start the server by running:
+
+```console
+flask run --host=0.0.0.0
+```
+
+The server now listens on port 5000 for requests. A sample request could be:
+
+```
+http://127.0.0.1:5000/inference?date=2021-08-01&symbols=TSLA-AMZN
+```
+
+This will give you the relative price change prediction for the tesla and amazon stock on the first of August, 2021.
 
 ## Abstract
 Stock trend forecasting, aiming at predicting the stock future trends, is crucial for investors to seek maximized profits from the stock market. Many event-driven methods utilized the events extracted from news, social media, and discussion board to forecast the stock trend in recent years. However, existing event-driven methods have some shortcomings, one of which is overlooking the influence of event information differentiated by the stock-dependent properties. Our model tries to prevent exactly that by learning the behavior of stocks in different contexts.
