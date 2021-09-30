@@ -1,7 +1,26 @@
 # REST-bot
 
 ## Getting Started
+
+## Prerequisites
+To contribute to this project, train the model or try inference, we recommend to work with python 3.7 and a virtual environment.
+So first, create a virtual environment, activate it and install the required dependencies.
+
+```console
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements_jazzy.txt
+```
+
+This project was planned to run on a bakdata kubeflow cluster within the google cloud environments, and so, currently  - even if not using the cloud environment - you have to set the google cloud authentication environment variables when running the main script.
+
+```console
+export GOOGLE_APPLICATION_CREDENTIALS=./gcp-bakdata-kubeflow-cluster.json
+```
+
 ### Training
+
+For pre-set training with our configurations, after finishing the steps in prereque
 - Python version
 - Create virtual environment
 - Pip install requirements
@@ -129,8 +148,15 @@ Stock graph is defined as a directed graph <a href="https://www.codecogs.com/eqn
 
 ![](https://github.com/m0e33/REST-bot/blob/report/assets/image8.jpg?raw=true)
 
+<<<<<<< HEAD
 ### 4.2 Different Contexts
 Crypto currencies, andere Zeitauflösung
+=======
+### 5.2 Different Assets, different Event Types
+Another possible extension would be the use of a new data basis. So far, we have only used blue-chip stocks, so to speak, which experience shows are usually not very volatile and react less strongly to individual events than other assets. So we could also try to use stocks with smaller market capitalization or even a completely new asset, such as cryptocurrency. Since our model only works with a timeseries of prices and simple text data, one could just as well train the model on cryptocurrencies. It may be possible to make specific statements about which assets and investment variants are most influenced by events.
+
+Another possibility would be to include additional news data. Other papers have already pointed out that social media data from Twitter, for example, can also contribute to model performance. With our model it is easy to add further event types. This would allow us to make statements about which event types have the greatest influence on the price of an asset. 
+>>>>>>> origin/report
 
 ---
 
