@@ -20,7 +20,7 @@ export GOOGLE_APPLICATION_CREDENTIALS=./gcp-bakdata-kubeflow-cluster.json
 
 ### Training
 
-For pre-set training with our configurations, you simply can call the main script and the application will download the necessary data, build the datasets and train the model.
+For pre-set training with our configurations, you can simply call the main script and the application will download the necessary data, build the datasets and train the model.
 
 ```
 python3 main.py
@@ -31,7 +31,7 @@ Within the `train_model()` method of the `model/rest_kubeflow_adapter.py` you ca
 
 The data configuration needs a list of symbols the model is trained on. This list of symbols can be defined in the `symbols.yml`
 
-We provide a sample configuration here. Some, if not all of these settings, will become clear when reading the following report.
+We provide a sample configuration here. All of these settings will become clear when reading the following report.
 
 ```python
 data_cfg = DataConfiguration(
@@ -60,8 +60,8 @@ hp_cfg = HyperParameterConfiguration(
 ```
 
 ### Inference
-Currently, due to memory leak issues, we are not able to provide a model with decent performance. However, all the infrastructure for model inference has been integrated. 
-Mandatory for inference to work is a _successfull_ training run, whether it trained the model up to a good test loss value or not. A successfull trainings run yields the following assets:
+Currently, due to hardware constraints (RAM), we are not able to provide a model with decent performance. However, all the infrastructure for model inference has been integrated. 
+Mandatory for inference to work is a _successfull_ training run, whether it trained the model up to a good test loss value or not. A successfull training run yields the following assets:
 - Serialized configurations, which determin the configuration for the model to load
 - Serialized model weights, the core for inference
 - Serialized word-embedding weights, an important part for preprocessing.
@@ -166,7 +166,7 @@ in the following sub-sections, we go through them from the perspective of one sy
 
 #### 2.2.1 Event Information Encoder
 
-The event information encoders job is to build a expressive representation of the information that exists right
+The event information encoders job is to build an expressive representation of the information that exists right
 as the day we want to predict takes place. It therefore utilizes an attention mechanism as well as a small LSTM net.
 
 ![](report/architecture-event-information-encoder.png?raw=true)
@@ -200,7 +200,7 @@ For the evaluation of different models, we have also implemented a simple thresh
 
 ## 4. Future Work
 ### 4.1 Graph Convolution
-A possible extension would be to learn the opposite side influence of stocks with a graph convolution and to let it affect the calculation. The paper implementation has shown that even better results can be achieved. The basis of the Graph Convolution would be to place the companies in different relations, for example relations like "same industry", "same shareholder", upstream and downstream relations etc.. Through the different relations a stock graph can be built, which is defined as follows: 
+A possible extension would be to learn the mutual influence of stocks with a graph convolution and to include it in the calculation. The paper implementation has shown that even better results can be achieved. The basis of the Graph Convolution would be to place the companies in different relations, for example relations like "same industry", "same shareholder", upstream and downstream relations etc. Through the different relations a stock graph can be built, which is defined as follows: 
 
 Stock graph is defined as a directed graph <a href="https://www.codecogs.com/eqnedit.php?latex=G=\langle\mathcal{S},&space;\mathcal{R},&space;\mathcal{A}\rangle" target="_blank"><img src="https://latex.codecogs.com/gif.latex?G=\langle\mathcal{S},&space;\mathcal{R},&space;\mathcal{A}\rangle" title="G=\langle\mathcal{S}, \mathcal{R}, \mathcal{A}\rangle" /></a>, where S denote the set of stocks in the market and R is the set of relations between two stocks. <a href="https://www.codecogs.com/eqnedit.php?latex=\mathcal{A}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\mathcal{A}" title="\mathcal{A}" /></a> is the set of adjacent matrices. For an adjacent matrix <a href="https://www.codecogs.com/eqnedit.php?latex=A^{r}&space;\in&space;\mathcal{A}(r&space;\in&space;\mathcal{R}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?A^{r}&space;\in&space;\mathcal{A}(r&space;\in&space;\mathcal{R}" title="A^{r} \in \mathcal{A}(r \in \mathcal{R}" /></a> and <a href="https://www.codecogs.com/eqnedit.php?latex=A^{r}&space;\in&space;\mathbb{R}|\mathcal{S}|&space;\times|\mathcal{S}|)" target="_blank"><img src="https://latex.codecogs.com/gif.latex?A^{r}&space;\in&space;\mathbb{R}|\mathcal{S}|&space;\times|\mathcal{S}|)" title="A^{r} \in \mathbb{R}|\mathcal{S}| \times|\mathcal{S}|)" /></a> of relation <a href="https://www.codecogs.com/eqnedit.php?latex=r,&space;A_{i&space;j}^{r}=1" target="_blank"><img src="https://latex.codecogs.com/gif.latex?r,&space;A_{i&space;j}^{r}=1" title="r, A_{i j}^{r}=1" /></a> means there is a relation <a href="https://www.codecogs.com/eqnedit.php?latex=r" target="_blank"><img src="https://latex.codecogs.com/gif.latex?r" title="r" /></a> from stocks <a href="https://www.codecogs.com/eqnedit.php?latex=s_j" target="_blank"><img src="https://latex.codecogs.com/gif.latex?s_j" title="s_j" /></a> to stock <a href="https://www.codecogs.com/eqnedit.php?latex=s_i" target="_blank"><img src="https://latex.codecogs.com/gif.latex?s_i" title="s_i" /></a> and <a href="https://www.codecogs.com/eqnedit.php?latex=A_{i&space;j}^{r}=0" target="_blank"><img src="https://latex.codecogs.com/gif.latex?A_{i&space;j}^{r}=0" title="A_{i j}^{r}=0" /></a> indicates there is no a relation <a href="https://www.codecogs.com/eqnedit.php?latex=r" target="_blank"><img src="https://latex.codecogs.com/gif.latex?r" title="r" /></a> from stock <a href="https://www.codecogs.com/eqnedit.php?latex=s_j" target="_blank"><img src="https://latex.codecogs.com/gif.latex?s_j" title="s_j" /></a> to stock <a href="https://www.codecogs.com/eqnedit.php?latex=s_i" target="_blank"><img src="https://latex.codecogs.com/gif.latex?s_i" title="s_i" /></a>.
 
