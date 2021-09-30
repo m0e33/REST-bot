@@ -4,8 +4,19 @@
 setup for training.
 setup for inference.
 prerequesites for inference.
+
 ## Abstract
-Stock trend forecasting, aiming at predicting the stock future trends, is crucial for investors to seek maximized profits from the stock market. Many event-driven methods utilized the events extracted from news, social media, and discussion board to forecast the stock trend in recent years. However, existing event-driven methods have some shortcomings, one of which is overlooking the influence of event information differentiated by the stock-dependent properties. Our model tries to prevent exactly that by learning the behavior of stocks in different contexts. 
+Stock trend forecasting, aiming at predicting the stock future trends, is crucial for investors to seek maximized profits from the stock market. Many event-driven methods utilized the events extracted from news, social media, and discussion board to forecast the stock trend in recent years. However, existing event-driven methods have some shortcomings, one of which is overlooking the influence of event information differentiated by the stock-dependent properties. Our model tries to prevent exactly that by learning the behavior of stocks in different contexts.
+
+# Problem
+We want to predict stock prices using event data. Given the stock-specific information (e.g., the textual information from news and social media, the historical stock price) of stock <a href="https://www.codecogs.com/eqnedit.php?latex=s_i" target="_blank"><img src="https://latex.codecogs.com/gif.latex?s_i" title="s_i" /></a> at date <a href="https://www.codecogs.com/eqnedit.php?latex=t" target="_blank"><img src="https://latex.codecogs.com/gif.latex?t" title="t" /></a>, the goal of stock trend forecasting is to forecast the stock price trend <a href="https://www.codecogs.com/eqnedit.php?latex=d^t_i" target="_blank"><img src="https://latex.codecogs.com/gif.latex?d^t_i" title="d^t_i" /></a>.
+
+Here, we define the stock price trend for stock <a href="https://www.codecogs.com/eqnedit.php?latex=s_i" target="_blank"><img src="https://latex.codecogs.com/gif.latex?s_i" title="s_i" /></a> at date <a href="https://www.codecogs.com/eqnedit.php?latex=t" target="_blank"><img src="https://latex.codecogs.com/gif.latex?t" title="t" /></a> as the stock price change rate of the next day:  
+<a href="https://www.codecogs.com/eqnedit.php?latex=d_{i}^{t}=\frac{\text&space;{&space;Price&space;}_{i}^{t&plus;1}-\text&space;{&space;Price&space;}_{i}^{t}}{\text&space;{&space;Price&space;}_{i}^{t}}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?d_{i}^{t}=\frac{\text&space;{&space;Price&space;}_{i}^{t&plus;1}-\text&space;{&space;Price&space;}_{i}^{t}}{\text&space;{&space;Price&space;}_{i}^{t}}" title="d_{i}^{t}=\frac{\text { Price }_{i}^{t+1}-\text { Price }_{i}^{t}}{\text { Price }_{i}^{t}}"/></a>
+
+where <a href="https://www.codecogs.com/eqnedit.php?latex=Price^t_i" target="_blank"><img src="https://latex.codecogs.com/gif.latex?Price^t_i" title="Price^t_i" /></a> could be specified by different values, such as opening price, closing price and volume weighted average price (VWAP), and we use closing price in our work.
+
+We also need to define what we mean with stock context. Stock context is defined as the combination of stock’s historical events and these events’ feedback, where event feedback is defined as the relative change of price on the stock that this event happened.
 
 ## 1. Motivation & Related Work
 Our model is the paper "REST: Relational Event-driven Stock Trend Forecasting" by Wentao Xu and his colleagues, who built and evaluated a similar model. Our goal was to build a profitable strategy around a model that incorporates the stock context, so that the model predictions serve as an indicator (buy and sell signal) for the strategy.
