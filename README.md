@@ -31,7 +31,7 @@ XXX (Hier kann man auch aus den Paper nochmal für jeden Absatz paar Beispielpap
 
 ## 2. Approach
 ### 2.1. Data
-For our model we need on the one hand price data (simple timeseries) and on the other hand stock news and press releases of the companies. For the companies we have chosen the 50 companies with the largest market capitalization (to train the model). All our data can be obtained from the API "Financialmodelingprep". A big limitation is that we can only obtain data for the last 2 years. These datasets are stored as simple time series as shown in the following:
+For our model we need on the one hand price data (simple timeseries) and on the other hand stock news and press releases of the companies. For the companies we have chosen the 50 companies with the largest market capitalization (to train the model). All our data can be obtained from the API of [financialmodelingprep](https://financialmodelingprep.com/developer). A big limitation is that we can only obtain data for the last 2 years. These datasets are stored as simple time series as shown in the following:
 
 ![](https://github.com/m0e33/REST-bot/blob/report/assets/image1.jpg?raw=true)
 
